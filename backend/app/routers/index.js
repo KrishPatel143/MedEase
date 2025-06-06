@@ -3,7 +3,8 @@ const express = require('express');
 const authRoutes = require('./auth');
 const appointmentsRoutes = require('./appointments');
 const doctorRoutes = require('./doctors');
-const revenueRoutes = require('./revenue')
+const revenueRoutes = require('./revenue');
+const financeRoutes = require('./finance');
 // const adminRoutes = require('./admin');
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
@@ -60,6 +61,7 @@ class Router {
         this.app.use('/api/appointments', appointmentsRoutes);
         this.app.use('/doctors', doctorRoutes);
         this.app.use('/revenue', revenueRoutes);
+        this.app.use('/finance', financeRoutes);
         this.app.use('*', this.routeHandler);
         this.app.use(this.logErrors);
         this.app.use(this.errorHandler);
