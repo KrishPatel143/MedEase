@@ -26,6 +26,7 @@ import {
 } from '@/lib/api/appointments';
 import { getProfile } from '@/lib/api';
 import { processPayment } from '@/lib/api/finance';
+import Link from 'next/link';
 
 export default function MyAppointments() {
   const [patientId, setPatientId] = useState(null);
@@ -431,18 +432,11 @@ export default function MyAppointments() {
                           </Button>
                         )}
                         
-                        {/* View Details button - always available */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            // TODO: Navigate to appointment details page
-                            console.log('View details for:', appointment._id);
-                          }}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Details
-                        </Button>
+                        <Link href={`/appointments/${appointment._id}`}  >
+                          <Button key="view" variant="outline" size="sm">
+                            View Details
+                          </Button>
+                        </Link>
                       </div>
                     </td>
                   </tr>

@@ -117,6 +117,8 @@ export const getDepartmentRevenue = async (params) => {
   }
 };
 
+
+
 // Default export with all functions
 export default {
   processPayment,
@@ -124,5 +126,5 @@ export default {
   getDoctorMonthlyRevenue,
   getPatientMonthlySpending,
   generatePatientInvoicePDF,
-  getDepartmentRevenue
+  getDepartmentRevenue,
 };

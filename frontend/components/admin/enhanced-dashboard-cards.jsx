@@ -49,7 +49,7 @@ export function EnhancedDashboardCards() {
           <CreditCard className="h-4 w-4 text-purple-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">$12,234</div>
+          <div className="text-2xl font-bold">£12,234</div>
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center">
               <TrendingUp className="mr-1 h-3 w-3 text-green-500" />

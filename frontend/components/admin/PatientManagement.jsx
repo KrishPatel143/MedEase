@@ -14,7 +14,7 @@ import { PatientFilters } from "./PatientFilters"
 import { PatientTabsContent } from "./PatientTabsContent"
 import { addPatient, getAllPatients, deletePatient, updatePatient, calculateAge } from "@/lib/api/patients"
 
-export function EnhancedPatientManagement() {
+export function PatientManagement() {
   const [showAddPatientDialog, setShowAddPatientDialog] = useState(false)
   const [showEditPatientDialog, setShowEditPatientDialog] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState(null)
@@ -324,8 +324,8 @@ export function EnhancedPatientManagement() {
     <Card className="col-span-3">
       <CardHeader className="flex flex-row items-center">
         <div>
-          <CardTitle>Patient Management</CardTitle>
-          <CardDescription>Add, view, and manage patients</CardDescription>
+          <CardTitle> My Patient</CardTitle>
+          <CardDescription>view patients</CardDescription>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <PatientSearch 

@@ -378,7 +378,7 @@ export function EditDoctorDialog({ open, onOpenChange, onSave, doctor }) {
                   {errors.experience && <p className="text-sm text-red-500">{errors.experience}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-consultation-fee">Consultation Fee (₹) *</Label>
+                  <Label htmlFor="edit-consultation-fee">Consultation Fee (£) *</Label>
                   <Input 
                     id="edit-consultation-fee" 
                     placeholder="500" 

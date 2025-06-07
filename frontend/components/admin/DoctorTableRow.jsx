@@ -27,7 +27,7 @@ export function DoctorTableRow({ doctor, onEdit, onManage, onDelete }) {
       <TableCell>{doctor.specialization}</TableCell>
       <TableCell>{doctor.department}</TableCell>
       <TableCell>{doctor.experience} years</TableCell>
-      <TableCell>₹{doctor.consultationFee}</TableCell>
+      <TableCell>£{doctor.consultationFee}</TableCell>
       <TableCell>{getStatusBadge(doctor.status)}</TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">

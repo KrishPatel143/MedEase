@@ -238,7 +238,7 @@ export function EnhancedFinances() {
                           height={80}
                           fontSize={12}
                         />
-                        <YAxis tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                        <YAxis tickFormatter={(value) => `£${(value / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(value) => formatCurrency(value)} />
                         <Bar dataKey="value" fill="#8884d8">
                           {departmentData.map((entry, index) => (

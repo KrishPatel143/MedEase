@@ -626,7 +626,7 @@ const AppointmentManagement = () => {
                             </td>
                             <td className="p-4">
                               <div className="flex flex-col">
-                                <span className="font-medium">${appointment.amount || 0}</span>
+                                <span className="font-medium">£{appointment.amount || 0}</span>
                                 <span className={`text-xs ${
                                   appointment.paymentStatus === 'paid' ? 'text-green-600' : 
                                   appointment.paymentStatus === 'failed' ? 'text-red-600' : 

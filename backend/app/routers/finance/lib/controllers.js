@@ -1134,5 +1134,86 @@ financeController.getDepartmentRevenue = async (req, res) => {
     });
   }
 };
+/**
+ * Generate Invoice PDF for Single Appointment
+ * GET /finance/invoice/appointment/:appointmentId/pdf?format=pdf
+ */
 
+
+// Also add a route to get appointment invoice details (without PDF)
+financeController.getAppointmentInvoiceDetails = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    // Convert to ObjectId
+    const appointmentObjectId = mongoose.Types.ObjectId.isValid(appointmentId) 
+      ? new mongoose.Types.ObjectId(appointmentId) 
+      : appointmentId;
+
+    // Get appointment with all details
+    const appointment = await Appointment.findById(appointmentObjectId)
+      .populate('patient', 'firstName lastName email phoneNumber')
+      .populate('doctor', 'firstName lastName');
+
+    if (!appointment) {
+      return res.status(404).json({
+        error: true,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Get revenue record for this appointment
+    const revenueRecord = await Revenue.findOne({ 
+      appointmentId: appointmentObjectId,
+      status: 'success'
+    });
+
+    if (!revenueRecord) {
+      return res.status(404).json({
+        error: true,
+        message: 'No payment record found for this appointment'
+      });
+    }
+
+    res.json({
+      message: 'Appointment invoice details retrieved successfully',
+      data: {
+        appointment: {
+          id: appointment._id,
+          date: appointment.appointmentDate,
+          reason: appointment.reason,
+          department: appointment.department,
+          status: appointment.status,
+          notes: appointment.notes
+        },
+        patient: {
+          id: appointment.patient._id,
+          name: `${appointment.patient.firstName} ${appointment.patient.lastName}`,
+          email: appointment.patient.email,
+          phone: appointment.patient.phoneNumber
+        },
+        doctor: {
+          id: appointment.doctor._id,
+          name: `Dr. ${appointment.doctor.firstName} ${appointment.doctor.lastName}`
+        },
+        payment: {
+          amount: revenueRecord.amount,
+          method: revenueRecord.paymentMethod,
+          transactionId: revenueRecord.transactionId,
+          date: revenueRecord.date,
+          status: revenueRecord.status,
+          description: revenueRecord.description
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching appointment invoice details:', error);
+    res.status(500).json({
+      error: true,
+      message: 'Error fetching appointment invoice details',
+      details: error.message
+    });
+  }
+};
 module.exports = financeController;

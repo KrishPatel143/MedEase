@@ -277,7 +277,7 @@ const Header = () => {
               </DropdownMenuItem>
               }
               {
-                 user?.role === 'staff' && 
+                 user?.role === 'doctor' && 
               <DropdownMenuItem asChild>
                 <Link href="/staff/me" className="flex items-center">
                   <User className="mr-2 h-4 w-4" />
