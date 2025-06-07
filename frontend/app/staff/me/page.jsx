@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import Header from "@/components/Header" // Import the universal header
 import { 
   User, 
   Edit, 
@@ -205,10 +206,13 @@ const DoctorProfilePage = ({ doctorId }) => {
   // Loading state while fetching initial data
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading doctor profile...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading doctor profile...</p>
+          </div>
         </div>
       </div>
     );
@@ -217,18 +221,21 @@ const DoctorProfilePage = ({ doctorId }) => {
   // Error state
   if (error && !doctorData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p className="font-bold">Error Loading Profile</p>
-            <p>{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error Loading Profile</p>
+              <p>{error}</p>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
           </div>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -244,6 +251,8 @@ const DoctorProfilePage = ({ doctorId }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+      <Header />
+      
       {/* Error Banner */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 text-center">
@@ -251,7 +260,7 @@ const DoctorProfilePage = ({ doctorId }) => {
         </div>
       )}
       
-      {/* Header */}
+      {/* Profile Header */}
       <div className="bg-white shadow-lg border-b border-blue-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -603,7 +612,7 @@ const DoctorProfilePage = ({ doctorId }) => {
             </div>
 
             {/* Change Password Card */}
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-blue-100">
+            {/* <div className="bg-white rounded-xl shadow-lg p-6 border border-blue-100">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">Change Password</h2>
               
               <div className="space-y-4">
@@ -654,7 +663,7 @@ const DoctorProfilePage = ({ doctorId }) => {
                   {loading ? 'Changing...' : 'Change Password'}
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -1,11 +1,11 @@
-import EnhancedAppointments from "@/components/admin/enhanced-appointments"
+import { EnhancedPatientManagement } from "@/components/admin/EnhancedPatientManagement"
 import Header from "@/components/Header"
 
 export default function AdminDashboard() {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <EnhancedAppointments/>
+      <EnhancedPatientManagement   />
     </div>
   )
 }

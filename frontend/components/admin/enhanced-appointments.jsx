@@ -9,6 +9,7 @@ import { Search, Plus, Calendar, Clock, User, Phone, Mail, AlertCircle, CheckCir
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getAllAppointments, updateAppointmentStatus } from '@/lib/api/appointments';
+import Link from 'next/link';
 
 const EnhancedAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -256,9 +257,11 @@ const EnhancedAppointments = () => {
 
     // Always add view button
     buttons.push(
+      <Link href={`/appointments/${appointment._id}`}  >
       <Button key="view" variant="outline" size="sm">
         View Details
       </Button>
+        </Link>
     );
 
     // Add cancel button for upcoming appointments only
@@ -610,7 +613,7 @@ const EnhancedAppointments = () => {
                         </td>
                         <td className="p-4">
                           <Badge variant="secondary">{appointment.department}</Badge>
-                        </td>d
+                        </td>
                         <td className="p-4">
                           {getStatusBadge(appointment.status)}
                         </td>

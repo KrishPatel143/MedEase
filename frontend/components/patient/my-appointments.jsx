@@ -14,7 +14,8 @@ import {
   CheckCircle, 
   XCircle,
   Eye,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from "lucide-react";
 
 // Import API functions
@@ -24,6 +25,7 @@ import {
   formatAppointmentData,
 } from '@/lib/api/appointments';
 import { getProfile } from '@/lib/api';
+import { processPayment } from '@/lib/api/finance';
 
 export default function MyAppointments() {
   const [patientId, setPatientId] = useState(null);
@@ -33,6 +35,12 @@ export default function MyAppointments() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [cancellingId, setCancellingId] = useState(null);
+  const [payingId, setPayingId] = useState(null);
+
+  // Generate random transaction ID
+  const generateTransactionId = () => {
+    return 'TXN_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  };
 
   // Get user profile and patient ID
   useEffect(() => {
@@ -133,6 +141,47 @@ export default function MyAppointments() {
       }
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const handlePayment = async (appointmentId) => {
+    setPayingId(appointmentId);
+    setError('');
+    setSuccess('');
+
+    try {
+      const paymentData = {
+        appointmentId: appointmentId,
+        paymentMethod: 'card',
+        transactionId: generateTransactionId()
+      };
+
+      await processPayment(paymentData);
+      
+      // Update the local state to reflect payment completion
+      setAppointments(prevAppointments =>
+        prevAppointments.map(appointment =>
+          appointment._id === appointmentId
+            ? { ...appointment, paymentStatus: 'paid' }
+            : appointment
+        )
+      );
+
+      setSuccess('Payment processed successfully');
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error processing payment:', err);
+      if (err.message.includes('not found')) {
+        setError('Appointment not found');
+      } else if (err.message.includes('already paid')) {
+        setError('This appointment has already been paid for');
+      } else {
+        setError('Failed to process payment. Please try again.');
+      }
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -354,6 +403,29 @@ export default function MyAppointments() {
                               <>
                                 <XCircle className="w-4 h-4 mr-1" />
                                 Cancel
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        
+                        {/* Pay button - only show for appointments with pending payment */}
+                        {appointment.paymentStatus === 'pending' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePayment(appointment._id)}
+                            disabled={payingId === appointment._id}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            {payingId === appointment._id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="w-4 h-4 mr-1" />
+                                Pay
                               </>
                             )}
                           </Button>

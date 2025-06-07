@@ -289,8 +289,8 @@ appointmentController.addAppointment = async (req, res) => {
 appointmentController.getAppointmentById = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id)
-      .populate('patient', 'firstName lastName email phoneNumber')
-      .populate('doctor', 'firstName lastName department specialization')
+      .populate('patient')
+      .populate('doctor')
       .populate('createdBy', 'firstName lastName');
     
     if (!appointment) {

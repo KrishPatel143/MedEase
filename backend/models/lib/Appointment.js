@@ -50,7 +50,7 @@ const appointmentSchema = new Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['cash', 'card', 'upi', 'insurance', 'online'],
+    enum: ['cash', 'card', 'insurance', 'online'],
   },
   createdBy: {
     type: Schema.Types.ObjectId,

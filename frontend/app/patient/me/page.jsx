@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import Header from "@/components/Header" // Import the universal header
 import { 
   User, 
   Edit, 
@@ -188,10 +189,13 @@ const PatientProfilePage = ({ patientId }) => {
   // Loading state while fetching initial data
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader className="w-8 h-8 animate-spin text-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading patient profile...</p>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <Loader className="w-8 h-8 animate-spin text-green-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading patient profile...</p>
+          </div>
         </div>
       </div>
     );
@@ -200,18 +204,21 @@ const PatientProfilePage = ({ patientId }) => {
   // Error state
   if (error && !patientData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p className="font-bold">Error Loading Profile</p>
-            <p>{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
+        <Header />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+              <p className="font-bold">Error Loading Profile</p>
+              <p>{error}</p>
+            </div>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              Retry
+            </button>
           </div>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -237,6 +244,8 @@ const PatientProfilePage = ({ patientId }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-blue-50">
+      <Header />
+      
       {/* Error Banner */}
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 text-center">
@@ -244,7 +253,7 @@ const PatientProfilePage = ({ patientId }) => {
         </div>
       )}
       
-      {/* Header */}
+      {/* Profile Header */}
       <div className="bg-white shadow-lg border-b border-green-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -326,20 +335,6 @@ const PatientProfilePage = ({ patientId }) => {
                       type="text"
                       value={formData.userId?.firstName || ''}
                       onChange={(e) => handleInputChange('firstName', e.target.value, 'userId')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                  ) : (
-                    <span className="text-gray-900">{patientData.userId?.firstName}</span>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={formData.userId?.lastName || ''}
-                      onChange={(e) => handleInputChange('lastName', e.target.value, 'userId')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     />
                   ) : (
@@ -573,7 +568,7 @@ const PatientProfilePage = ({ patientId }) => {
             </div>
           </div>
 
-          {/* Right Column - Password & Additional Info */}
+          {/* Right Column - Account Status & Password */}
           <div className="space-y-6">
             
             {/* Account Status Card */}
@@ -601,6 +596,60 @@ const PatientProfilePage = ({ patientId }) => {
                 </div>
               </div>
             </div>
+
+            {/* Change Password Card */}
+            {/* <div className="bg-white rounded-xl shadow-lg p-6 border border-green-100">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Change Password</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4 text-gray-400" /> : <Eye className="w-4 h-4 text-gray-400" />}
+                    </button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.newPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <button
+                  onClick={handleChangePassword}
+                  disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </div> */}
           </div>
         </div>
       </div>

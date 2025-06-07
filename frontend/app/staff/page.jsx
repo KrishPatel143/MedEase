@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import Header from "@/components/Header" // Import the universal header
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Search, Plus, Calendar, Clock, User, Phone, Mail, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {  getAllDoctorsAppointments, updateAppointmentStatus } from '@/lib/api/appointments';
+import { getAllDoctorsAppointments, updateAppointmentStatus } from '@/lib/api/appointments';
+import Link from 'next/link';
 
 const AppointmentManagement = () => {
   const [appointments, setAppointments] = useState([]);
@@ -261,9 +263,11 @@ const AppointmentManagement = () => {
 
     // Always add view button
     buttons.push(
+      <Link href={`/appointments/${appointment._id}`}  >
       <Button key="view" variant="outline" size="sm">
         View Details
       </Button>
+        </Link>
     );
 
     // Add cancel button for upcoming appointments only
@@ -346,401 +350,411 @@ const AppointmentManagement = () => {
 
   if (loading && appointments.length === 0) {
     return (
-      <Card className="col-span-3">
-        <CardContent className="flex items-center justify-center h-96">
-          <div className="flex items-center space-x-2">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <span>Loading appointments...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <main className="flex w-full flex-col gap-4 p-4 md:gap-8 md:p-6">
+          <Card className="col-span-3">
+            <CardContent className="flex items-center justify-center h-96">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Loading appointments...</span>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     );
   }
 
   return (
-    <Card className="col-span-3">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="h-5 w-5" />
-            <span>My Appointments</span>
-          </CardTitle>
-          <CardDescription>
-            Manage your patient appointments ({totalAppointments} total)
-          </CardDescription>
-        </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline"
-            onClick={fetchAppointments}
-            disabled={loading}
-            size="sm"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {error && (
-          <Alert className="mb-4 border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-600">
-              {error}
-              <Button
-                variant="link"
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="flex w-full flex-col gap-4 p-4 md:gap-8 md:p-6">
+        <Card className="col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="h-5 w-5" />
+                <span>My Appointments</span>
+              </CardTitle>
+              <CardDescription>
+                Manage your patient appointments ({totalAppointments} total)
+              </CardDescription>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline"
+                onClick={fetchAppointments}
+                disabled={loading}
                 size="sm"
-                onClick={() => setError('')}
-                className="ml-2 text-red-600 underline p-0 h-auto"
               >
-                Dismiss
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
               </Button>
-            </AlertDescription>
-          </Alert>
-        )}
+            </div>
+          </CardHeader>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 font-medium">Today's Appointments</p>
-                <p className="text-2xl font-bold text-blue-700">{stats.today}</p>
-              </div>
-              <Calendar className="h-8 w-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-amber-600 font-medium">Upcoming</p>
-                <p className="text-2xl font-bold text-amber-700">{stats.upcoming}</p>
-              </div>
-              <Clock className="h-8 w-8 text-amber-500" />
-            </div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600 font-medium">Completed</p>
-                <p className="text-2xl font-bold text-green-700">{stats.completed}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-600 font-medium">Cancelled</p>
-                <p className="text-2xl font-bold text-red-700">{stats.cancelled}</p>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500" />
-            </div>
-          </div>
-        </div>
+          <CardContent>
+            {error && (
+              <Alert className="mb-4 border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-600">
+                  {error}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setError('')}
+                    className="ml-2 text-red-600 underline p-0 h-auto"
+                  >
+                    Dismiss
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
 
-        {/* Enhanced Filters */}
-        <div className="flex flex-col gap-4 mb-6">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search by patient name, email, or appointment details..."
-              className="pl-8 w-full"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={handleSearch}
-            />
-          </div>
-          
-          {/* Filter Row */}
-          <div className="flex flex-wrap gap-3 items-center">
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Filter by date" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Dates</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="tomorrow">Tomorrow</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="upcoming">Scheduled</SelectItem>
-                <SelectItem value="check-in">Checked In</SelectItem>
-                <SelectItem value="check-out">With Doctor</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="rescheduled">Rescheduled</SelectItem>
-                <SelectItem value="no-show">No Show</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Button 
-              onClick={clearFilters}
-              variant="outline"
-              size="sm"
-              className="px-4"
-            >
-              Clear All
-            </Button>
-            
-            {/* Active Filters Display */}
-            <div className="flex flex-wrap gap-2 ml-auto">
-              {searchTerm && (
-                <Badge variant="secondary" className="text-xs">
-                  Search: "{searchTerm}"
-                </Badge>
-              )}
-              {statusFilter !== 'all' && (
-                <Badge variant="secondary" className="text-xs">
-                  Status: {statusFilter}
-                </Badge>
-              )}
-              {dateFilter !== 'all' && (
-                <Badge variant="secondary" className="text-xs">
-                  Date: {dateFilter}
-                </Badge>
-              )}
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-blue-600 font-medium">Today's Appointments</p>
+                    <p className="text-2xl font-bold text-blue-700">{stats.today}</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-amber-600 font-medium">Upcoming</p>
+                    <p className="text-2xl font-bold text-amber-700">{stats.upcoming}</p>
+                  </div>
+                  <Clock className="h-8 w-8 text-amber-500" />
+                </div>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-600 font-medium">Completed</p>
+                    <p className="text-2xl font-bold text-green-700">{stats.completed}</p>
+                  </div>
+                  <CheckCircle className="h-8 w-8 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-red-600 font-medium">Cancelled</p>
+                    <p className="text-2xl font-bold text-red-700">{stats.cancelled}</p>
+                  </div>
+                  <XCircle className="h-8 w-8 text-red-500" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <Tabs defaultValue="list" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar View</TabsTrigger>
-          </TabsList>
+            {/* Enhanced Filters */}
+            <div className="flex flex-col gap-4 mb-6">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search by patient name, email, or appointment details..."
+                  className="pl-8 w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleSearch}
+                />
+              </div>
+              
+              {/* Filter Row */}
+              <div className="flex flex-wrap gap-3 items-center">
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Filter by date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Dates</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="upcoming">Scheduled</SelectItem>
+                    <SelectItem value="check-in">Checked In</SelectItem>
+                    <SelectItem value="check-out">With Doctor</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                    <SelectItem value="no-show">No Show</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  onClick={clearFilters}
+                  variant="outline"
+                  size="sm"
+                  className="px-4"
+                >
+                  Clear All
+                </Button>
+                
+                {/* Active Filters Display */}
+                <div className="flex flex-wrap gap-2 ml-auto">
+                  {searchTerm && (
+                    <Badge variant="secondary" className="text-xs">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+                  {statusFilter !== 'all' && (
+                    <Badge variant="secondary" className="text-xs">
+                      Status: {statusFilter}
+                    </Badge>
+                  )}
+                  {dateFilter !== 'all' && (
+                    <Badge variant="secondary" className="text-xs">
+                      Date: {dateFilter}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
 
-          <TabsContent value="list">
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr className="border-b">
-                    <th className="text-left p-4 font-medium">Time</th>
-                    <th className="text-left p-4 font-medium">Patient</th>
-                    <th className="text-left p-4 font-medium">Contact</th>
-                    <th className="text-left p-4 font-medium">Type</th>
-                    <th className="text-left p-4 font-medium">Doctor</th>
-                    <th className="text-left p-4 font-medium">Department</th>
-                    <th className="text-left p-4 font-medium">Status</th>
-                    <th className="text-left p-4 font-medium">Amount</th>
-                    <th className="text-right p-4 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAppointments.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                        {loading ? (
-                          <div className="flex items-center justify-center space-x-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span>Loading appointments...</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center space-y-2">
-                            <AlertCircle className="h-8 w-8 text-gray-400" />
-                            <span>No appointments found matching your criteria</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={clearFilters}
-                              className="mt-2"
-                            >
-                              Clear filters to see all appointments
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredAppointments.map((appointment) => (
-                      <tr key={appointment._id} className="border-b hover:bg-muted/50">
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{formatTime(appointment.appointmentDate)}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDate(appointment.appointmentDate)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="font-medium">
-                                {appointment.patient.firstName} {appointment.patient.lastName}
+            <Tabs defaultValue="list" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="list">List View</TabsTrigger>
+                <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="list">
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr className="border-b">
+                        <th className="text-left p-4 font-medium">Time</th>
+                        <th className="text-left p-4 font-medium">Patient</th>
+                        <th className="text-left p-4 font-medium">Contact</th>
+                        <th className="text-left p-4 font-medium">Type</th>
+                        <th className="text-left p-4 font-medium">Doctor</th>
+                        <th className="text-left p-4 font-medium">Department</th>
+                        <th className="text-left p-4 font-medium">Status</th>
+                        <th className="text-left p-4 font-medium">Amount</th>
+                        <th className="text-right p-4 font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAppointments.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="text-center py-8 text-muted-foreground">
+                            {loading ? (
+                              <div className="flex items-center justify-center space-x-2">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Loading appointments...</span>
                               </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                              <Mail className="h-3 w-3" />
-                              <span>{appointment.patient.email}</span>
-                            </div>
-                            {appointment.patient.phoneNumber && (
-                              <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                                <Phone className="h-3 w-3" />
-                                <span>{appointment.patient.phoneNumber}</span>
+                            ) : (
+                              <div className="flex flex-col items-center space-y-2">
+                                <AlertCircle className="h-8 w-8 text-gray-400" />
+                                <span>No appointments found matching your criteria</span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={clearFilters}
+                                  className="mt-2"
+                                >
+                                  Clear filters to see all appointments
+                                </Button>
                               </div>
                             )}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline">{appointment.reason}</Badge>
-                        </td>
-                        <td className="p-4">
-                          <div className="font-medium">
-                            {appointment.doctor.firstName} {appointment.doctor.lastName}
-                          </div>
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="secondary">{appointment.department}</Badge>
-                        </td>
-                        <td className="p-4">
-                          {getStatusBadge(appointment.status)}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col">
-                            <span className="font-medium">${appointment.amount || 0}</span>
-                            <span className={`text-xs ${
-                              appointment.paymentStatus === 'paid' ? 'text-green-600' : 
-                              appointment.paymentStatus === 'failed' ? 'text-red-600' : 
-                              'text-amber-600'
-                            }`}>
-                              {appointment.paymentStatus}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2 flex-wrap">
-                            {getActionButtons(appointment)}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Enhanced Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing page {currentPage} of {totalPages} ({totalAppointments} total appointments)
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredAppointments.map((appointment) => (
+                          <tr key={appointment._id} className="border-b hover:bg-muted/50">
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="font-medium">{formatTime(appointment.appointmentDate)}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatDate(appointment.appointmentDate)}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center space-x-2">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <div className="font-medium">
+                                    {appointment.patient.firstName} {appointment.patient.lastName}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="space-y-1">
+                                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                  <Mail className="h-3 w-3" />
+                                  <span>{appointment.patient.email}</span>
+                                </div>
+                                {appointment.patient.phoneNumber && (
+                                  <div className="flex items-center space-x-1 text-xs text-muted-foreground">
+                                    <Phone className="h-3 w-3" />
+                                    <span>{appointment.patient.phoneNumber}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline">{appointment.reason}</Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="font-medium">
+                                {appointment.doctor.firstName} {appointment.doctor.lastName}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="secondary">{appointment.department}</Badge>
+                            </td>
+                            <td className="p-4">
+                              {getStatusBadge(appointment.status)}
+                            </td>
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="font-medium">${appointment.amount || 0}</span>
+                                <span className={`text-xs ${
+                                  appointment.paymentStatus === 'paid' ? 'text-green-600' : 
+                                  appointment.paymentStatus === 'failed' ? 'text-red-600' : 
+                                  'text-amber-600'
+                                }`}>
+                                  {appointment.paymentStatus}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex justify-end gap-2 flex-wrap">
+                                {getActionButtons(appointment)}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(1)}
-                    disabled={currentPage === 1 || loading}
-                  >
-                    First
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1 || loading}
-                  >
-                    Previous
-                  </Button>
-                  <div className="flex space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let page;
-                      if (totalPages <= 5) {
-                        page = i + 1;
-                      } else {
-                        const start = Math.max(1, currentPage - 2);
-                        const end = Math.min(totalPages, start + 4);
-                        page = start + i;
-                        if (page > end) return null;
-                      }
-                      
-                      return (
-                        <Button
-                          key={page}
-                          variant={page === currentPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(page)}
-                          disabled={loading}
-                        >
-                          {page}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages || loading}
-                  >
-                    Next
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(totalPages)}
-                    disabled={currentPage === totalPages || loading}
-                  >
-                    Last
-                  </Button>
-                </div>
-              </div>
-            )}
-          </TabsContent>
 
-          <TabsContent value="calendar">
-            <div className="border rounded-lg p-6 bg-muted/20">
-              <div className="text-center mb-8">
-                <h3 className="text-lg font-semibold mb-2">Calendar View</h3>
-                <p className="text-muted-foreground">
-                  Calendar integration would show appointments in a visual calendar format
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-7 gap-2 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="p-3 text-center font-medium bg-background rounded border">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: 35 }, (_, i) => (
-                  <div key={i} className="min-h-[100px] bg-background p-2 border rounded">
-                    <div className="font-medium text-sm mb-1">{(i % 28) + 1}</div>
-                    {i === 24 && (
-                      <div className="space-y-1">
-                        <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                          {filteredAppointments.length} appointments
-                        </div>
+                {/* Enhanced Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Showing page {currentPage} of {totalPages} ({totalAppointments} total appointments)
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1 || loading}
+                      >
+                        First
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1 || loading}
+                      >
+                        Previous
+                      </Button>
+                      <div className="flex space-x-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let page;
+                          if (totalPages <= 5) {
+                            page = i + 1;
+                          } else {
+                            const start = Math.max(1, currentPage - 2);
+                            const end = Math.min(totalPages, start + 4);
+                            page = start + i;
+                            if (page > end) return null;
+                          }
+                          
+                          return (
+                            <Button
+                              key={page}
+                              variant={page === currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(page)}
+                              disabled={loading}
+                            >
+                              {page}
+                            </Button>
+                          );
+                        })}
                       </div>
-                    )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages || loading}
+                      >
+                        Next
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages || loading}
+                      >
+                        Last
+                      </Button>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="calendar">
+                <div className="border rounded-lg p-6 bg-muted/20">
+                  <div className="text-center mb-8">
+                    <h3 className="text-lg font-semibold mb-2">Calendar View</h3>
+                    <p className="text-muted-foreground">
+                      Calendar integration would show appointments in a visual calendar format
+                    </p>
+                  </div>
+                  
+                  <div className="grid grid-cols-7 gap-2 mb-4">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                      <div key={day} className="p-3 text-center font-medium bg-background rounded border">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: 35 }, (_, i) => (
+                      <div key={i} className="min-h-[100px] bg-background p-2 border rounded">
+                        <div className="font-medium text-sm mb-1">{(i % 28) + 1}</div>
+                        {i === 24 && (
+                          <div className="space-y-1">
+                            <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                              {filteredAppointments.length} appointments
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
   );
 };
 
