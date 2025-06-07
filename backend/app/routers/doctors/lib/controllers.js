@@ -304,10 +304,12 @@ doctorController.addDoctor = async (req, res) => {
  */
 doctorController.getDoctorById = async (req, res) => {
   try {
-    const doctor = await Doctor.findById(req.params.id)
-      .populate('userId', 'firstName lastName email phoneNumber status isActive');
+    const doctor = await Doctor.findOne({userId:req.params.id})
+      .populate('userId');
     
     if (!doctor) {
+      console.log('Doctor not found');
+      
       return res.status(404).json({
         error: true,
         message: 'Doctor not found'
@@ -372,6 +374,7 @@ doctorController.updateDoctor = async (req, res) => {
 
     // Validate required fields
     if (!firstName || !lastName || !email || !specialization || !department) {
+      console.log(firstName + " " + lastName + " " + email + " " + specialization + " " + department);
       return res.status(400).json({
         success: false,
         error: true,

@@ -10,14 +10,14 @@ router.use(authMiddleware.protect);
 // Routes for managing doctors
 router.route('/')
   .get(doctorController.getAllDoctors)
-  .post(authMiddleware.restrictTo('admin', 'superadmin'), doctorController.addDoctor);
+  .post(authMiddleware.restrictTo('admin'), doctorController.addDoctor);
 
 // Get doctors by department
 router.get('/department/:department', doctorController.getDoctorsByDepartment);
 
 router.route('/:id')
   .get(doctorController.getDoctorById)
-  .put(authMiddleware.restrictTo('admin', 'superadmin'), doctorController.updateDoctor)
+  .put(doctorController.updateDoctor)
   .delete(authMiddleware.restrictTo('admin' ), doctorController.deleteDoctor);
 
 // Update availability

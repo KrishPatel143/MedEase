@@ -11,7 +11,7 @@ export const getAllAppointments = async (params = {}) => {
   }
 };
 
-export const getAllDoctorsAppointments = async () => {
+export const getAllDoctorsAppointments = async (params = {}) => {
   try {
     const queryString = new URLSearchParams(params).toString();
     const endpoint = `/api/appointments/doctor${queryString ? `?${queryString}` : ''}`;;
