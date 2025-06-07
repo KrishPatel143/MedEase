@@ -5,7 +5,7 @@ const financeController = require('./lib/controllers');
 const authMiddleware = require('../auth/lib/middlewares');
 
 // All finance routes require authentication
-// router.use(authMiddleware.protect);
+router.use(authMiddleware.protect);
 
 // Payment processing routes
 router.post('/payment/process', financeController.processPayment);
@@ -25,6 +25,11 @@ router.get('/reports/patient-spending/:patientId',
 // PDF Invoice generation (Patients can generate their own, Admins can generate any)
 router.get('/reports/patient-invoice/:patientId', 
   financeController.generatePatientInvoicePDF
+);
+
+router.get('/reports/department-revenue', 
+  authMiddleware.restrictTo('admin'), 
+  financeController.getDepartmentRevenue
 );
 
 module.exports = router;

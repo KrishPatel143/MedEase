@@ -988,4 +988,151 @@ financeController.generatePatientInvoicePDF = async (req, res) => {
   }
 };
 
+/**
+ * Get department-wise revenue breakdown
+ * GET /finance/reports/department-revenue?month=11&year=2024&period=month
+ */
+/**
+ * Get department-wise revenue breakdown
+ * GET /finance/reports/department-revenue?month=11&year=2024&period=month
+ */
+financeController.getDepartmentRevenue = async (req, res) => {
+  try {
+    // Check if user exists (for debugging)
+    if (!req.user) {
+      return res.status(401).json({
+        error: true,
+        message: 'Authentication required. Please login first.'
+      });
+    }
+
+    const { month, year, period = 'month' } = req.query;
+    
+    const currentDate = new Date();
+    let startDate, endDate;
+
+    if (period === 'month') {
+      const targetMonth = month ? parseInt(month) - 1 : currentDate.getMonth();
+      const targetYear = year ? parseInt(year) : currentDate.getFullYear();
+      startDate = new Date(targetYear, targetMonth, 1);
+      endDate = new Date(targetYear, targetMonth + 1, 1);
+    } else if (period === 'year') {
+      const targetYear = year ? parseInt(year) : currentDate.getFullYear();
+      startDate = new Date(targetYear, 0, 1);
+      endDate = new Date(targetYear + 1, 0, 1);
+    } else {
+      // Default to current month
+      startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    }
+
+    // DEBUG: Check what data exists in Revenue collection
+    const allRevenues = await Revenue.find({}).sort({ date: -1 }).limit(5);
+    console.log('Sample Revenue Records:', allRevenues);
+    
+    // DEBUG: Check date filtering
+    console.log('Date Filter Debug:', {
+      startDate,
+      endDate,
+      targetMonth: month ? parseInt(month) - 1 : currentDate.getMonth(),
+      targetYear: year ? parseInt(year) : currentDate.getFullYear()
+    });
+
+    // Check if any revenues exist in the date range
+    const revenuesInRange = await Revenue.find({
+      date: { $gte: startDate, $lt: endDate }
+    });
+    console.log('Revenues in date range:', revenuesInRange.length);
+
+    // Get department-wise revenue with detailed breakdown
+    const departmentRevenue = await Revenue.aggregate([
+      {
+        $match: {
+          date: { $gte: startDate, $lt: endDate },
+          status: 'success'
+        }
+      },
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: 'appointmentId',
+          foreignField: '_id',
+          as: 'appointment'
+        }
+      },
+      { $unwind: '$appointment' },
+      {
+        $group: {
+          _id: '$appointment.department',
+          totalRevenue: { $sum: '$amount' },
+          totalAppointments: { $sum: 1 },
+          averagePerAppointment: { $avg: '$amount' },
+          uniquePatients: { $addToSet: '$patientId' },
+          uniqueDoctors: { $addToSet: '$doctorId' }
+        }
+      },
+      {
+        $project: {
+          department: '$_id',
+          totalRevenue: 1,
+          totalAppointments: 1,
+          averagePerAppointment: { $round: ['$averagePerAppointment', 2] },
+          uniquePatients: { $size: '$uniquePatients' },
+          uniqueDoctors: { $size: '$uniqueDoctors' }
+        }
+      },
+      { $sort: { totalRevenue: -1 } }
+    ]);
+
+    // Calculate total revenue across all departments
+    const totalRevenue = departmentRevenue.reduce((sum, dept) => sum + dept.totalRevenue, 0);
+
+    // Add percentage calculation to each department
+    const departmentData = departmentRevenue.map(dept => ({
+      ...dept,
+      revenuePercentage: totalRevenue > 0 ? 
+        Math.round((dept.totalRevenue / totalRevenue) * 100 * 100) / 100 : 0
+    }));
+
+    res.json({
+      message: 'Department-wise revenue retrieved successfully',
+      debug: {
+        dateFilter: { startDate, endDate },
+        sampleRevenues: allRevenues.map(r => ({ 
+          date: r.date, 
+          amount: r.amount, 
+          status: r.status,
+          appointmentId: r.appointmentId 
+        })),
+        revenuesInRange: revenuesInRange.length,
+        departmentQuery: departmentRevenue.length
+      },
+      data: {
+        period: {
+          type: period,
+          startDate: startDate,
+          endDate: endDate,
+          displayName: period === 'month' ? 
+            startDate.toLocaleString('default', { month: 'long', year: 'numeric' }) :
+            startDate.getFullYear().toString()
+        },
+        summary: {
+          totalRevenue: totalRevenue,
+          totalDepartments: departmentData.length,
+          totalAppointments: departmentData.reduce((sum, dept) => sum + dept.totalAppointments, 0)
+        },
+        departments: departmentData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getDepartmentRevenue:', error);
+    res.status(500).json({
+      error: true,
+      message: 'Error fetching department revenue',
+      details: error.message
+    });
+  }
+};
+
 module.exports = financeController;

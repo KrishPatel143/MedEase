@@ -847,4 +847,235 @@ doctorController.getDeletionPreview = async (req, res) => {
   }
 };
 
+// Add this method to your existing doctorController object in controllers.js
+// Place it before the module.exports line
+
+/**
+ * Get all patients connected to the authenticated doctor
+ * GET /doctors/my-patients?page=1&limit=10&search=john&status=active
+ */
+doctorController.getMyPatients = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search, status, sortBy = 'lastVisit' } = req.query;
+    
+    // Get the doctor's user ID (from JWT token)
+    const doctorUserId = req.user.id;
+    
+    // Verify the user is actually a doctor
+    const doctorProfile = await Doctor.findOne({ userId: doctorUserId });
+    if (!doctorProfile) {
+      return res.status(403).json({
+        error: true,
+        message: 'Access denied. Doctor profile not found.'
+      });
+    }
+
+    // Import required models
+    const Appointment = require('../../../../models/lib/Appointment');
+    const Revenue = require('../../../../models/lib/Revenue');
+
+    // Find all appointments for this doctor to get connected patients
+    const appointmentQuery = { doctor: doctorUserId };
+    
+    // Add status filter to appointments if provided
+    if (status && status !== 'all') {
+      if (status === 'active') {
+        appointmentQuery.status = { $in: ['upcoming', 'completed', 'check-in', 'check-out'] };
+      } else {
+        appointmentQuery.status = status;
+      }
+    }
+
+    // Get all appointments for this doctor
+    const appointments = await Appointment.find(appointmentQuery)
+      .populate('patient', 'firstName lastName email phoneNumber isActive')
+      .sort({ appointmentDate: -1 });
+
+    // Group appointments by patient and get patient statistics
+    const patientMap = new Map();
+    
+    appointments.forEach(appointment => {
+      if (!appointment.patient) return;
+      
+      const patientId = appointment.patient._id.toString();
+      
+      if (!patientMap.has(patientId)) {
+        patientMap.set(patientId, {
+          patient: appointment.patient,
+          appointments: [],
+          stats: {
+            totalAppointments: 0,
+            completedAppointments: 0,
+            upcomingAppointments: 0,
+            cancelledAppointments: 0,
+            totalAmountPaid: 0,
+            lastVisitDate: null,
+            nextAppointmentDate: null,
+            firstVisitDate: null
+          }
+        });
+      }
+      
+      const patientData = patientMap.get(patientId);
+      patientData.appointments.push(appointment);
+      
+      // Update statistics
+      patientData.stats.totalAppointments++;
+      
+      if (appointment.status === 'completed' || appointment.status === 'check-out') {
+        patientData.stats.completedAppointments++;
+        if (!patientData.stats.lastVisitDate || appointment.appointmentDate > patientData.stats.lastVisitDate) {
+          patientData.stats.lastVisitDate = appointment.appointmentDate;
+        }
+      }
+      
+      if (appointment.status === 'upcoming' || appointment.status === 'check-in') {
+        patientData.stats.upcomingAppointments++;
+        if (!patientData.stats.nextAppointmentDate || appointment.appointmentDate < patientData.stats.nextAppointmentDate) {
+          patientData.stats.nextAppointmentDate = appointment.appointmentDate;
+        }
+      }
+      
+      if (appointment.status === 'cancelled' || appointment.status === 'no-show') {
+        patientData.stats.cancelledAppointments++;
+      }
+      
+      if (appointment.paymentStatus === 'paid') {
+        patientData.stats.totalAmountPaid += appointment.amount || 0;
+      }
+      
+      // Track first visit
+      if (!patientData.stats.firstVisitDate || appointment.appointmentDate < patientData.stats.firstVisitDate) {
+        patientData.stats.firstVisitDate = appointment.appointmentDate;
+      }
+    });
+
+    // Convert map to array and add search functionality
+    let patients = Array.from(patientMap.values());
+    
+    // Apply search filter
+    if (search && search.trim()) {
+      const searchTerm = search.toLowerCase().trim();
+      patients = patients.filter(item => {
+        const patient = item.patient;
+        return (
+          patient.firstName.toLowerCase().includes(searchTerm) ||
+          patient.lastName.toLowerCase().includes(searchTerm) ||
+          patient.email.toLowerCase().includes(searchTerm) ||
+          (patient.phoneNumber && patient.phoneNumber.includes(searchTerm))
+        );
+      });
+    }
+
+    // Apply sorting
+    patients.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return `${a.patient.firstName} ${a.patient.lastName}`.localeCompare(`${b.patient.firstName} ${b.patient.lastName}`);
+        case 'lastVisit':
+          const aDate = a.stats.lastVisitDate || new Date(0);
+          const bDate = b.stats.lastVisitDate || new Date(0);
+          return bDate - aDate; // Most recent first
+        case 'totalVisits':
+          return b.stats.completedAppointments - a.stats.completedAppointments;
+        case 'totalSpent':
+          return b.stats.totalAmountPaid - a.stats.totalAmountPaid;
+        case 'nextAppointment':
+          const aNext = a.stats.nextAppointmentDate || new Date('9999-12-31');
+          const bNext = b.stats.nextAppointmentDate || new Date('9999-12-31');
+          return aNext - bNext; // Soonest first
+        default:
+          return bDate - aDate;
+      }
+    });
+
+    // Apply pagination
+    const total = patients.length;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const paginatedPatients = patients.slice(skip, skip + parseInt(limit));
+
+    // Format response data
+    const formattedPatients = paginatedPatients.map(item => {
+      const patient = item.patient;
+      const stats = item.stats;
+      
+      return {
+        patientId: patient._id,
+        personalInfo: {
+          name: `${patient.firstName} ${patient.lastName}`,
+          firstName: patient.firstName,
+          lastName: patient.lastName,
+          email: patient.email,
+          phoneNumber: patient.phoneNumber,
+          isActive: patient.isActive
+        },
+        appointmentHistory: {
+          totalAppointments: stats.totalAppointments,
+          completedAppointments: stats.completedAppointments,
+          upcomingAppointments: stats.upcomingAppointments,
+          cancelledAppointments: stats.cancelledAppointments,
+          firstVisitDate: stats.firstVisitDate,
+          lastVisitDate: stats.lastVisitDate,
+          nextAppointmentDate: stats.nextAppointmentDate
+        },
+        financialSummary: {
+          totalAmountPaid: stats.totalAmountPaid,
+          averagePerVisit: stats.completedAppointments > 0 ? 
+            Math.round(stats.totalAmountPaid / stats.completedAppointments) : 0
+        },
+        recentAppointments: item.appointments
+          .sort((a, b) => b.appointmentDate - a.appointmentDate)
+          .slice(0, 3)
+          .map(apt => ({
+            appointmentId: apt._id,
+            appointmentDate: apt.appointmentDate,
+            reason: apt.reason,
+            status: apt.status,
+            paymentStatus: apt.paymentStatus,
+            amount: apt.amount,
+            notes: apt.notes
+          }))
+      };
+    });
+
+    // Calculate summary statistics for all patients
+    const summary = {
+      totalPatients: total,
+      activePatients: patients.filter(p => p.patient.isActive).length,
+      totalRevenue: patients.reduce((sum, p) => sum + p.stats.totalAmountPaid, 0),
+      totalAppointments: patients.reduce((sum, p) => sum + p.stats.totalAppointments, 0),
+      patientsWithUpcomingAppointments: patients.filter(p => p.stats.upcomingAppointments > 0).length
+    };
+
+    res.json({
+      message: 'Patients retrieved successfully',
+      data: {
+        patients: formattedPatients,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalPatients: total,
+          patientsPerPage: parseInt(limit),
+          hasNextPage: skip + parseInt(limit) < total,
+          hasPreviousPage: parseInt(page) > 1
+        },
+        summary: summary,
+        filters: {
+          search: search || null,
+          status: status || 'all',
+          sortBy: sortBy
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching doctor patients:', error);
+    res.status(500).json({
+      error: true,
+      message: 'Error fetching patients',
+      details: error.message
+    });
+  }
+};
+
 module.exports = doctorController;
