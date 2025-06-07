@@ -22,9 +22,9 @@ router.get('/reports/patient-spending/:patientId',
   financeController.getPatientMonthlySpending
 );
 
-router.get('/reports/overview', 
-  authMiddleware.restrictTo('admin'), 
-  financeController.getFinancialOverview
+// PDF Invoice generation (Patients can generate their own, Admins can generate any)
+router.get('/reports/patient-invoice/:patientId', 
+  financeController.generatePatientInvoicePDF
 );
 
 module.exports = router;

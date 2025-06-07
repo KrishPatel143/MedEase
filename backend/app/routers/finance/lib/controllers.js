@@ -4,6 +4,7 @@ const Revenue = require('../../../../models/lib/Revenue');
 const User = require('../../../../models/lib/User');
 const Doctor = require('../../../../models/lib/Doctor');
 const mongoose = require('mongoose');
+const puppeteer = require('puppeteer');
 
 const financeController = {};
 
@@ -512,135 +513,134 @@ financeController.getPatientPaymentHistory = async (req, res) => {
   }
 };
 
-/**
- * Get financial overview (Admin only)
- * GET /finance/reports/overview
- */
-financeController.getFinancialOverview = async (req, res) => {
+financeController.generatePatientInvoicePDF = async (req, res) => {
   try {
-    const { period = 'month', month, year } = req.query;
-    
-    const currentDate = new Date();
-    let startDate, endDate;
+    console.log('--- PDF Generation Start ---');
+    const { patientId } = req.params;
+    const { startDate, endDate, format = 'pdf' } = req.query;
+    console.log('Params:', { patientId, startDate, endDate, format });
 
-    if (period === 'month') {
-      const targetMonth = month ? parseInt(month) - 1 : currentDate.getMonth();
-      const targetYear = year ? parseInt(year) : currentDate.getFullYear();
-      startDate = new Date(targetYear, targetMonth, 1);
-      endDate = new Date(targetYear, targetMonth + 1, 1);
-    } else if (period === 'year') {
-      const targetYear = year ? parseInt(year) : currentDate.getFullYear();
-      startDate = new Date(targetYear, 0, 1);
-      endDate = new Date(targetYear + 1, 0, 1);
-    } else {
-      startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+    // Convert to ObjectId
+    const patientObjectId = mongoose.Types.ObjectId.isValid(patientId) 
+      ? new mongoose.Types.ObjectId(patientId) 
+      : patientId;
+    console.log('Patient ObjectId:', patientObjectId);
+
+    // Verify access - patients can only generate their own invoices
+    if (req.user.role === 'patient' && req.user.id !== patientId) {
+      console.log('Access denied for user:', req.user.id);
+      return res.status(403).json({
+        error: true,
+        message: 'Access denied'
+      });
     }
 
-    const totalStats = await Revenue.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lt: endDate },
-          status: 'success'
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          totalRevenue: { $sum: '$amount' },
-          totalTransactions: { $sum: 1 }
-        }
-      }
-    ]);
+    // Get patient info
+    const patient = await User.findById(patientObjectId).select('firstName lastName email phoneNumber');
+    if (!patient) {
+      console.log('Patient not found:', patientId);
+      return res.status(404).json({
+        error: true,
+        message: 'Patient not found'
+      });
+    }
+    console.log('Patient found:', patient.firstName, patient.lastName);
 
-    const topDoctors = await Revenue.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lt: endDate },
-          status: 'success'
-        }
-      },
-      {
-        $group: {
-          _id: '$doctorId',
-          revenue: { $sum: '$amount' },
-          appointments: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'doctor'
-        }
-      },
-      { $unwind: '$doctor' },
-      {
-        $project: {
-          doctorName: { $concat: ['$doctor.firstName', ' ', '$doctor.lastName'] },
-          revenue: 1,
-          appointments: 1
-        }
-      },
-      { $sort: { revenue: -1 } },
-      { $limit: 5 }
-    ]);
+    // Build date filter
+    const dateFilter = {};
+    if (startDate || endDate) {
+      if (startDate) dateFilter.$gte = new Date(startDate);
+      if (endDate) dateFilter.$lte = new Date(endDate);
+    }
+    console.log('Date filter:', dateFilter);
 
-    const departmentRevenue = await Revenue.aggregate([
-      {
-        $match: {
-          date: { $gte: startDate, $lt: endDate },
-          status: 'success'
-        }
-      },
-      {
-        $lookup: {
-          from: 'appointments',
-          localField: 'appointmentId',
-          foreignField: '_id',
-          as: 'appointment'
-        }
-      },
-      { $unwind: '$appointment' },
-      {
-        $group: {
-          _id: '$appointment.department',
-          revenue: { $sum: '$amount' },
-          appointments: { $sum: 1 }
-        }
-      },
-      { $sort: { revenue: -1 } }
-    ]);
+    const filter = { 
+      patientId: patientObjectId,
+      status: 'success'
+    };
+    if (Object.keys(dateFilter).length > 0) {
+      filter.date = dateFilter;
+    }
+    console.log('Mongo filter:', filter);
 
-    const stats = totalStats[0] || { totalRevenue: 0, totalTransactions: 0 };
+    // Get revenue records with details
+    const revenueRecords = await Revenue.find(filter)
+      .populate('doctorId', 'firstName lastName')
+      .populate('appointmentId', 'appointmentDate reason department')
+      .sort({ date: -1 });
+    console.log('Revenue records found:', revenueRecords.length);
 
-    res.json({
-      message: 'Financial overview retrieved successfully',
-      data: {
-        period: {
-          type: period,
-          startDate: startDate,
-          endDate: endDate,
-          displayName: period === 'month' ? 
-            startDate.toLocaleString('default', { month: 'long', year: 'numeric' }) :
-            startDate.getFullYear().toString()
-        },
-        summary: {
-          totalRevenue: stats.totalRevenue,
-          totalTransactions: stats.totalTransactions,
-          averageTransactionValue: stats.totalTransactions > 0 ? 
-            Math.round(stats.totalRevenue / stats.totalTransactions) : 0
-        },
-        topDoctors: topDoctors,
-        departmentBreakdown: departmentRevenue
-      }
-    });
+    if (revenueRecords.length === 0) {
+      console.log('No revenue records found for patient:', patientId);
+      return res.status(404).json({
+        error: true,
+        message: 'No revenue records found for the specified period'
+      });
+    }
 
+    // Calculate totals
+    const totalAmount = revenueRecords.reduce((sum, record) => sum + record.amount, 0);
+    const totalTransactions = revenueRecords.length;
+    console.log('Total amount:', totalAmount, 'Total transactions:', totalTransactions);
+
+    // Generate HTML for PDF
+    const generateHTML = () => {
+      const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR'
+      }).format(amount);
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Medical Invoice - ${patient.firstName} ${patient.lastName}</title>
+          <style>body { font-family: 'Arial', sans-serif; }</style>
+        </head>
+        <body>
+          <h1>Invoice for ${patient.firstName} ${patient.lastName}</h1>
+          <p>Total: ${formatCurrency(totalAmount)}</p>
+          <p>Transactions: ${totalTransactions}</p>
+        </body>
+        </html>
+      `;
+    };
+
+    const filename = `invoice_${patient.firstName}_${patient.lastName}_${new Date().toISOString().split('T')[0]}.pdf`;
+    console.log('Filename:', filename);
+
+    if (format === 'html') {
+      console.log('Sending HTML preview');
+      res.setHeader('Content-Type', 'text/html');
+      res.send(generateHTML());
+    } else {
+      console.log('Generating PDF with Puppeteer...');
+      const html = generateHTML();
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({ format: 'A4' });
+      await browser.close();
+      console.log('PDF buffer generated, size:', pdfBuffer.length);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+      console.log('PDF sent to client');
+    }
+    console.log('--- PDF Generation End ---');
   } catch (error) {
+    console.error('Error generating patient invoice PDF:', error);
     res.status(500).json({
       error: true,
-      message: 'Error fetching financial overview',
+      message: 'Error generating invoice PDF',
       details: error.message
     });
   }
