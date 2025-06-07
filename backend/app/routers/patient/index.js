@@ -9,12 +9,12 @@ router.use(authMiddleware.protect);
 
 // Routes for managing patients
 router.route('/')
-  .get(patientController.getAllPatients)  // GET /api/patients - Get all patients with pagination and search
-  .post( patientController.addPatient);  // POST /api/patients - Add new patient
+  .get(patientController.getAllPatients)
+  .post( patientController.addPatient);
 
 // Individual patient routes
 router.route('/:id')
-  .get(patientController.getPatientById)  // GET /api/patients/:id - Get specific patient
-  .put( patientController.updatePatient);  // PUT /api/patients/:id - Update patient
+  .get(patientController.getPatientById)
+  .put( patientController.updatePatient); 
 
 module.exports = router;

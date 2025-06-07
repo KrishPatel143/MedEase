@@ -256,26 +256,59 @@ patientController.addPatient = async (req, res) => {
  */
 patientController.getPatientById = async (req, res) => {
   try {
-    const patient = await Patient.findOne({userId: req.params.id})
+    // First try to find existing patient
+    let patient = await Patient.findOne({userId: req.params.id})
       .populate('userId', 'firstName lastName email isActive');
     
     if (!patient) {
-      console.log('Patient not found');
+      console.log('Patient not found, creating new patient profile');
       
-      return res.status(404).json({
-        error: true,
-        message: 'Patient not found'
+      // Check if user exists
+      const user = await User.findById(req.params.id);
+      if (!user) {
+        return res.status(404).json({
+          error: true,
+          message: 'User not found'
+        });
+      }
+
+      // Create new patient with default values
+      const newPatient = new Patient({
+        userId: req.params.id,
+        dateOfBirth: new Date('1990-01-01'), // Default date of birth
+        gender: 'prefer_not_to_say', // Default gender
+        contactNumber: '',
+        address: '',
+        emergencyContact: {
+          name: '',
+          relationship: '',
+          phoneNumber: ''
+        },
+        medicalHistory: []
+      });
+
+      patient = await newPatient.save();
+      
+      // Populate user details for response
+      await patient.populate('userId', 'firstName lastName email isActive');
+
+      return res.status(201).json({
+        message: 'Patient profile created successfully',
+        data: patient,
+        created: true
       });
     }
 
     res.json({
       message: 'Patient retrieved successfully',
-      data: patient
+      data: patient,
+      created: false
     });
   } catch (error) {
+    console.error('Error in getPatientById:', error);
     res.status(500).json({
       error: true,
-      message: 'Error fetching patient',
+      message: 'Error fetching/creating patient',
       details: error.message
     });
   }

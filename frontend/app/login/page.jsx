@@ -57,7 +57,6 @@ export default function LoginPage() {
         method: 'POST',
         body: JSON.stringify(formData)
       });
-      console.log(response);
       
       // Store the authentication token
       if (response.token) {

@@ -5,6 +5,7 @@ import { EnhancedDoctorManagement } from "@/components/admin/enhanced-staff-mana
 import { EnhancedFinances } from "@/components/admin/enhanced-finances"
 import { EnhancedNotifications } from "@/components/admin/enhanced-notifications"
 import EnhancedAppointments from "@/components/admin/enhanced-appointments"
+import { EnhancedPatientManagement } from "@/components/admin/EnhancedPatientManagement"
 
 export default function AdminDashboard() {
   return (
@@ -33,7 +34,7 @@ export default function AdminDashboard() {
               <EnhancedDoctorManagement />
             </TabsContent>
             <TabsContent value="appointments" className="space-y-4">
-              <EnhancedAppointments />
+              <EnhancedPatientManagement />
             </TabsContent>
             <TabsContent value="finances" className="space-y-4">
               <EnhancedFinances />
