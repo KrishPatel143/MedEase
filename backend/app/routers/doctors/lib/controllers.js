@@ -722,4 +722,129 @@ doctorController.updateAvailability = async (req, res) => {
   }
 };
 
+/**
+ * Get deletion preview - shows what will be affected when doctor is deleted
+ * GET /doctors/:id/deletion-preview
+ * 
+ * This API shows admin what appointments and records will be affected
+ * before actually deleting the doctor
+ */
+doctorController.getDeletionPreview = async (req, res) => {
+  try {
+    const doctorId = req.params.id;
+    
+    // Find the doctor profile
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      return res.status(404).json({
+        error: true,
+        message: 'Doctor not found'
+      });
+    }
+
+    // Find the user account
+    const user = await User.findById(doctor.userId);
+    if (!user) {
+      return res.status(404).json({
+        error: true,
+        message: 'Doctor user account not found'
+      });
+    }
+
+    // Get all appointments for this doctor
+    const allAppointments = await Appointment.find({ doctor: doctor.userId })
+      .populate('patient', 'firstName lastName email phoneNumber')
+      .sort({ appointmentDate: 1 });
+    
+    // Categorize appointments
+    const pendingAppointments = allAppointments.filter(apt => 
+      ['upcoming', 'rescheduled', 'check-in'].includes(apt.status)
+    );
+    
+    const completedAppointments = allAppointments.filter(apt => 
+      ['completed', 'check-out'].includes(apt.status)
+    );
+    
+    const cancelledAppointments = allAppointments.filter(apt => 
+      ['cancelled', 'no-show'].includes(apt.status)
+    );
+
+    // Get revenue statistics
+    const revenueStats = await Revenue.aggregate([
+      { $match: { doctorId: doctor.userId } },
+      { 
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: '$amount' },
+          totalTransactions: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get upcoming appointments with patient details
+    const upcomingDetails = pendingAppointments.map(apt => ({
+      appointmentId: apt._id,
+      appointmentDate: apt.appointmentDate,
+      patient: {
+        name: apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : 'Unknown',
+        email: apt.patient ? apt.patient.email : 'Unknown',
+        phone: apt.patient ? apt.patient.phoneNumber : 'Unknown'
+      },
+      reason: apt.reason,
+      status: apt.status,
+      amount: apt.amount
+    }));
+
+    const deletionImpact = {
+      doctor: {
+        id: doctorId,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        department: doctor.department,
+        specialization: doctor.specialization,
+        status: doctor.status
+      },
+      appointmentImpact: {
+        willBeCancelled: pendingAppointments.length,
+        willBeMarkedHistorical: completedAppointments.length,
+        alreadyCancelled: cancelledAppointments.length,
+        totalAppointments: allAppointments.length
+      },
+      revenueImpact: {
+        totalRevenueGenerated: revenueStats[0]?.totalRevenue || 0,
+        totalTransactions: revenueStats[0]?.totalTransactions || 0,
+        note: "Revenue records will be preserved but marked as historical"
+      },
+      upcomingAppointments: upcomingDetails,
+      warnings: []
+    };
+
+    // Add warnings based on impact
+    if (pendingAppointments.length > 0) {
+      deletionImpact.warnings.push(`${pendingAppointments.length} upcoming appointments will be automatically cancelled`);
+    }
+    
+    if (revenueStats[0]?.totalRevenue > 0) {
+      deletionImpact.warnings.push(`₹${revenueStats[0].totalRevenue} in historical revenue records will be preserved but marked`);
+    }
+
+    if (pendingAppointments.length > 5) {
+      deletionImpact.warnings.push('High number of upcoming appointments - consider reassigning patients to other doctors first');
+    }
+
+    res.json({
+      message: 'Deletion preview generated successfully',
+      data: deletionImpact
+    });
+
+  } catch (error) {
+    console.error('Error in getDeletionPreview:', error);
+    res.status(500).json({
+      error: true,
+      message: 'Error generating deletion preview',
+      details: error.message
+    });
+  }
+};
+
 module.exports = doctorController;

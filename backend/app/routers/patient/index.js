@@ -1,7 +1,7 @@
 // patientRoutes.js
 const express = require('express');
 const router = express.Router();
-const patientController = require('./lib/controllers/patientController');
+const patientController = require('./lib/controllers');
 const authMiddleware = require('../auth/lib/middlewares');
 
 // All patient routes require authentication
