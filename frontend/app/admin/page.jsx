@@ -2,9 +2,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Header } from "@/components/admin/header"
 import { Sidebar } from "@/components/admin/sidebar"
 import { EnhancedDoctorManagement } from "@/components/admin/enhanced-staff-management"
-import { EnhancedAppointments } from "@/components/admin/enhanced-appointments"
 import { EnhancedFinances } from "@/components/admin/enhanced-finances"
 import { EnhancedNotifications } from "@/components/admin/enhanced-notifications"
+import EnhancedAppointments from "@/components/admin/enhanced-appointments"
 
 export default function AdminDashboard() {
   return (

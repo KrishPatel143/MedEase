@@ -1,21 +1,6 @@
-// lib/api/appointments.js
 
 import { get, post,patch } from "../api";
 
-/**
- * Appointments API Client
- * Handles all appointment-related API operations
- */
-
-// =============================================================================
-// APPOINTMENT MANAGEMENT
-// =============================================================================
-
-/**
- * Get all appointments with optional filtering and pagination
- * @param {Object} params - Query parameters
- * @returns {Promise<Object>} - List of appointments with pagination
- */
 export const getAllAppointments = async (params = {}) => {
   try {
     const queryString = new URLSearchParams(params).toString();
@@ -28,7 +13,9 @@ export const getAllAppointments = async (params = {}) => {
 
 export const getAllDoctorsAppointments = async () => {
   try {
-    const endpoint = `/api/appointments/doctor`;
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = `/api/appointments/doctor${queryString ? `?${queryString}` : ''}`;;
+
     return await get(endpoint);
   } catch (error) {
     throw new Error(`Failed to fetch doctor appointments: ${error.message}`);

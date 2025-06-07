@@ -15,14 +15,13 @@ import { Loader2, Clock, User, Calendar as CalendarIcon, AlertCircle } from "luc
 // Import API functions
 import { 
   getDepartments, 
-  getDoctorsByDepartment, 
-  getAllDoctors 
+  getDoctorsByDepartment,  
 } from '@/lib/api/doctors';
 import { 
   checkAvailability, 
   addAppointment 
 } from '@/lib/api/appointments';
-import { getCurrentUser, getProfile, getUserRole } from '@/lib/api';
+import { getProfile } from '@/lib/api';
 
 export default function EnhancedAppointmentBooking() {
   const [date, setDate] = useState(new Date());
@@ -177,10 +176,9 @@ export default function EnhancedAppointmentBooking() {
         ? filteredDoctors.find(d => d._id === selectedDoctor)
         : doctors.find(d => d._id === selectedDoctor);
       const authdata = await getProfile();
-      console.log(authdata);
       
       const appointmentData = {
-        patient: authdata.id, // TODO: Replace with actual patient ID from auth context
+        patient: authdata.id, 
         doctor: selectedDoctorData.userId,
         department: selectedDepartment || selectedDoctorData?.department,
         appointmentDate: appointmentDateTime.toISOString(),
@@ -297,7 +295,6 @@ export default function EnhancedAppointmentBooking() {
                     </SelectContent>
                   </Select>
                 </div>
-
                 {/* Doctor Selection */}
                 <div>
                   <Label>Select Doctor *</Label>
@@ -305,12 +302,12 @@ export default function EnhancedAppointmentBooking() {
                     value={selectedDoctor} 
                     onValueChange={setSelectedDoctor}
                     disabled={!selectedDepartment}
-                  >
+                    >
                     <SelectTrigger>
                       <SelectValue placeholder={
                         !selectedDepartment 
-                          ? "Select department first" 
-                          : "Choose doctor"
+                        ? "Select department first" 
+                        : "Choose doctor"
                       } />
                     </SelectTrigger>
                     <SelectContent>
@@ -322,9 +319,10 @@ export default function EnhancedAppointmentBooking() {
                       ) : (
                         filteredDoctors.map((doctor) => (
                           <SelectItem key={doctor._id} value={doctor._id}>
+            
                             <div className="flex items-center gap-2">
                               <User className="w-4 h-4" />
-                              Dr. {doctor.firstName} {doctor.lastName}
+                              Dr. {doctor.userId.firstName} {doctor.userId.lastName}
                               <span className="text-sm text-gray-500">
                                 ({doctor.specialization})
                               </span>

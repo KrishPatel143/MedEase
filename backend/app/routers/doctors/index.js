@@ -18,7 +18,7 @@ router.get('/department/:department', doctorController.getDoctorsByDepartment);
 router.route('/:id')
   .get(doctorController.getDoctorById)
   .put(authMiddleware.restrictTo('admin', 'superadmin'), doctorController.updateDoctor)
-  .delete(authMiddleware.restrictTo('superadmin'), doctorController.deleteDoctor);
+  .delete(authMiddleware.restrictTo('admin' ), doctorController.deleteDoctor);
 
 // Update availability
 router.patch('/:id/availability', doctorController.updateAvailability);

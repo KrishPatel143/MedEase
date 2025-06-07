@@ -34,9 +34,6 @@ export function DoctorTableRow({ doctor, onEdit, onManage, onDelete }) {
           <Button variant="outline" size="icon" onClick={() => onEdit(doctor)}>
             <Edit className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => onManage(doctor)}>
-            <UserCog className="h-4 w-4" />
-          </Button>
           <Button
             variant="outline"
             size="icon"

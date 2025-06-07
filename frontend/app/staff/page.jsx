@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Plus, Calendar, Clock, User, Phone, Mail, AlertCircle, CheckCircle, XCircle, Loader2, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getAllAppointments ,getAllDoctorsAppointments,updateAppointmentStatus } from '@/lib/api/appointments';
+import {  getAllDoctorsAppointments, updateAppointmentStatus } from '@/lib/api/appointments';
 
 const AppointmentManagement = () => {
   const [appointments, setAppointments] = useState([]);
@@ -28,77 +28,73 @@ const AppointmentManagement = () => {
     cancelled: 0
   });
 
-  // API Base URL - Update this to match your backend URL
-  
-  // Get auth token from localStorage or your auth system
-
-  // Fetch appointments from your API
+  // Fetch appointments from your API with proper query parameters
   const fetchAppointments = async () => {
     setLoading(true);
     setError('');
     
     try {
+      // Build query parameters object for the API
+      const params = {};
       
-      // Add query parameters
-      const params = new URLSearchParams();
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (searchTerm.trim()) params.append('search', searchTerm.trim());
-      params.append('page', currentPage.toString());
-      params.append('limit', '10');
+      // Add filters only if they're not 'all'
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
       
-      // Add date filter
+      // Add pagination
+      params.page = currentPage.toString();
+      params.limit = '10';
+      
+      // Add date filter with proper formatting
       if (dateFilter !== 'all') {
         const today = new Date();
-        let filterDate = today;
+        let filterDate;
         
         switch (dateFilter) {
           case 'today':
-            filterDate = today;``
+            filterDate = today;
             break;
           case 'tomorrow':
             filterDate = new Date(today);
             filterDate.setDate(filterDate.getDate() + 1);
             break;
           case 'week':
-            // For now, just use today - you can enhance this later
+            // For this week, let's use today (you can enhance this later)
             filterDate = today;
             break;
           case 'month':
-            // For now, just use today - you can enhance this later
+            // For this month, let's use today (you can enhance this later)
             filterDate = today;
             break;
+          default:
+            filterDate = null;
         }
         
-        if (dateFilter === 'today') {
-          params.append('date', filterDate.toISOString().split('T')[0]);
+        if (filterDate) {
+          // Format date as YYYY-MM-DD for backend
+          params.date = filterDate.toISOString().split('T')[0];
         }
       }
 
-
-      const response = await getAllDoctorsAppointments();
-
-    
-
-      const data = response;hn
+      // Call the doctor appointments API with parameters
+      const response = await getAllDoctorsAppointments(params);
       
-
-      console.log('API Response:', data);
+      console.log('API Response:', response);
 
       // Process the appointments data
-      const processedAppointments = data.data.map(appointment => ({
+      const processedAppointments = response.data.map(appointment => ({
         ...appointment,
         appointmentDate: new Date(appointment.appointmentDate)
       }));
 
       setAppointments(processedAppointments);
-      setTotalPages(data.pages || 1);
-      setTotalAppointments(data.total || 0);
+      setTotalPages(response.pages || 1);
+      setTotalAppointments(response.total || 0);
       
-      // Calculate stats from all appointments (not just current page)
+      // Calculate stats from current page data
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
       
       const todayAppointments = processedAppointments.filter(apt => {
         const aptDate = new Date(apt.appointmentDate);
@@ -127,10 +123,6 @@ const AppointmentManagement = () => {
     try {
       const response = await updateAppointmentStatus(appointmentId, newStatus);
 
-      const data = response;
-      
-
-
       // Update local state immediately for better UX
       setAppointments(prev => 
         prev.map(apt => 
@@ -153,18 +145,37 @@ const AppointmentManagement = () => {
     }
   };
 
-  // Fetch appointments when filters change
+  // Fetch appointments when page or filters change
   useEffect(() => {
     fetchAppointments();
   }, [currentPage, statusFilter, dateFilter]);
 
-  // Debounced search
+  // Search functionality with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (currentPage === 1) {
-        fetchAppointments();
+      if (searchTerm.trim()) {
+        // Filter appointments locally based on search term
+        const filtered = appointments.filter(appointment => {
+          const searchLower = searchTerm.toLowerCase();
+          const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`.toLowerCase();
+          const doctorName = `${appointment.doctor.firstName} ${appointment.doctor.lastName}`.toLowerCase();
+          const reason = appointment.reason.toLowerCase();
+          const department = appointment.department.toLowerCase();
+          
+          return patientName.includes(searchLower) || 
+                 doctorName.includes(searchLower) || 
+                 reason.includes(searchLower) ||
+                 department.includes(searchLower);
+        });
+        // For now, we'll filter locally. If you want server-side search, 
+        // you'll need to add search parameter to the backend API
       } else {
-        setCurrentPage(1); // This will trigger fetchAppointments via the above useEffect
+        // If no search term, fetch fresh data
+        if (currentPage === 1) {
+          fetchAppointments();
+        } else {
+          setCurrentPage(1);
+        }
       }
     }, 500);
 
@@ -304,6 +315,35 @@ const AppointmentManagement = () => {
     setCurrentPage(1);
   };
 
+  const handleSearch = (e) => {
+    if (e.key === 'Enter') {
+      // Force immediate search on Enter key
+      if (currentPage === 1) {
+        fetchAppointments();
+      } else {
+        setCurrentPage(1);
+      }
+    }
+  };
+
+  // Filter appointments based on search term (client-side filtering)
+  const filteredAppointments = searchTerm.trim() 
+    ? appointments.filter(appointment => {
+        const searchLower = searchTerm.toLowerCase();
+        const patientName = `${appointment.patient.firstName} ${appointment.patient.lastName}`.toLowerCase();
+        const doctorName = `${appointment.doctor.firstName} ${appointment.doctor.lastName}`.toLowerCase();
+        const reason = appointment.reason.toLowerCase();
+        const department = appointment.department.toLowerCase();
+        const email = appointment.patient.email.toLowerCase();
+        
+        return patientName.includes(searchLower) || 
+               doctorName.includes(searchLower) || 
+               reason.includes(searchLower) ||
+               department.includes(searchLower) ||
+               email.includes(searchLower);
+      })
+    : appointments;
+
   if (loading && appointments.length === 0) {
     return (
       <Card className="col-span-3">
@@ -323,10 +363,10 @@ const AppointmentManagement = () => {
         <div>
           <CardTitle className="flex items-center space-x-2">
             <Calendar className="h-5 w-5" />
-            <span>Appointment Management</span>
+            <span>My Appointments</span>
           </CardTitle>
           <CardDescription>
-            Schedule and manage patient appointments ({totalAppointments} total)
+            Manage your patient appointments ({totalAppointments} total)
           </CardDescription>
         </div>
         <div className="flex space-x-2">
@@ -400,26 +440,25 @@ const AppointmentManagement = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center mb-6">
-          <div className="relative flex-1">
+        {/* Enhanced Filters */}
+        <div className="flex flex-col gap-4 mb-6">
+          {/* Search Bar */}
+          <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search by patient name, doctor, or reason..."
+              placeholder="Search by patient name, email, or appointment details..."
               className="pl-8 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  fetchAppointments();
-                }
-              }}
+              onKeyPress={handleSearch}
             />
           </div>
-          <div className="flex gap-2">
+          
+          {/* Filter Row */}
+          <div className="flex flex-wrap gap-3 items-center">
             <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Filter by date" />
               </SelectTrigger>
               <SelectContent>
@@ -430,8 +469,9 @@ const AppointmentManagement = () => {
                 <SelectItem value="month">This Month</SelectItem>
               </SelectContent>
             </Select>
+            
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -442,16 +482,37 @@ const AppointmentManagement = () => {
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                <SelectItem value="no-show">No Show</SelectItem>
               </SelectContent>
             </Select>
+            
             <Button 
               onClick={clearFilters}
               variant="outline"
               size="sm"
-              className="px-3"
+              className="px-4"
             >
-              Clear
+              Clear All
             </Button>
+            
+            {/* Active Filters Display */}
+            <div className="flex flex-wrap gap-2 ml-auto">
+              {searchTerm && (
+                <Badge variant="secondary" className="text-xs">
+                  Search: "{searchTerm}"
+                </Badge>
+              )}
+              {statusFilter !== 'all' && (
+                <Badge variant="secondary" className="text-xs">
+                  Status: {statusFilter}
+                </Badge>
+              )}
+              {dateFilter !== 'all' && (
+                <Badge variant="secondary" className="text-xs">
+                  Date: {dateFilter}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
@@ -478,7 +539,7 @@ const AppointmentManagement = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {appointments.length === 0 ? (
+                  {filteredAppointments.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-center py-8 text-muted-foreground">
                         {loading ? (
@@ -487,12 +548,23 @@ const AppointmentManagement = () => {
                             <span>Loading appointments...</span>
                           </div>
                         ) : (
-                          "No appointments found matching your criteria"
+                          <div className="flex flex-col items-center space-y-2">
+                            <AlertCircle className="h-8 w-8 text-gray-400" />
+                            <span>No appointments found matching your criteria</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={clearFilters}
+                              className="mt-2"
+                            >
+                              Clear filters to see all appointments
+                            </Button>
+                          </div>
                         )}
                       </td>
                     </tr>
                   ) : (
-                    appointments.map((appointment) => (
+                    filteredAppointments.map((appointment) => (
                       <tr key={appointment._id} className="border-b hover:bg-muted/50">
                         <td className="p-4">
                           <div className="flex flex-col">
@@ -564,13 +636,21 @@ const AppointmentManagement = () => {
               </table>
             </div>
 
-            {/* Pagination */}
+            {/* Enhanced Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
                   Showing page {currentPage} of {totalPages} ({totalAppointments} total appointments)
                 </div>
                 <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1 || loading}
+                  >
+                    First
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -581,7 +661,16 @@ const AppointmentManagement = () => {
                   </Button>
                   <div className="flex space-x-1">
                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const page = i + 1;
+                      let page;
+                      if (totalPages <= 5) {
+                        page = i + 1;
+                      } else {
+                        const start = Math.max(1, currentPage - 2);
+                        const end = Math.min(totalPages, start + 4);
+                        page = start + i;
+                        if (page > end) return null;
+                      }
+                      
                       return (
                         <Button
                           key={page}
@@ -602,6 +691,14 @@ const AppointmentManagement = () => {
                     disabled={currentPage === totalPages || loading}
                   >
                     Next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages || loading}
+                  >
+                    Last
                   </Button>
                 </div>
               </div>
@@ -632,7 +729,7 @@ const AppointmentManagement = () => {
                     {i === 24 && (
                       <div className="space-y-1">
                         <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                          {appointments.length} appointments
+                          {filteredAppointments.length} appointments
                         </div>
                       </div>
                     )}

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,19 +14,20 @@ import {
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle, Clock, User, Briefcase } from "lucide-react"
+import { CheckCircle, User, Briefcase, Clock, X } from "lucide-react"
 
-export function AddDoctorDialog({ open, onOpenChange, onSave }) {
+export function EditDoctorDialog({ open, onOpenChange, onSave, doctor }) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     email: "",
-    password: "",
+    phoneNumber: "",
     specialization: "",
     department: "",
     experience: "",
-    consultationFee: "500",
-    qualifications: [{ degree: "", institution: "", year: "" }],
+    consultationFee: "",
+    status: "active",
+    qualifications: [],
     availability: {
       monday: { start: "09:00", end: "17:00", isAvailable: true },
       tuesday: { start: "09:00", end: "17:00", isAvailable: true },
@@ -38,6 +39,9 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
     }
   })
 
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState({})
+
   const daysOfWeek = [
     { key: 'monday', label: 'Monday' },
     { key: 'tuesday', label: 'Tuesday' },
@@ -48,40 +52,154 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
     { key: 'sunday', label: 'Sunday' }
   ]
 
-  const handleSave = () => {
-    if (onSave) {
-      onSave(formData)
+  // Populate form when doctor prop changes
+  useEffect(() => {
+    if (doctor) {
+      setFormData({
+        firstName: doctor.userId?.firstName || "",
+        lastName: doctor.userId?.lastName || "",
+        email: doctor.userId?.email || "",
+        phoneNumber: doctor.userId?.phoneNumber || "",
+        specialization: doctor.specialization || "",
+        department: doctor.department || "",
+        experience: doctor.experience?.toString() || "0",
+        consultationFee: doctor.consultationFee?.toString() || "500",
+        status: doctor.status || "active",
+        qualifications: doctor.qualifications || [],
+        availability: doctor.availability || {
+          monday: { start: "09:00", end: "17:00", isAvailable: true },
+          tuesday: { start: "09:00", end: "17:00", isAvailable: true },
+          wednesday: { start: "09:00", end: "17:00", isAvailable: true },
+          thursday: { start: "09:00", end: "17:00", isAvailable: true },
+          friday: { start: "09:00", end: "17:00", isAvailable: true },
+          saturday: { start: "09:00", end: "13:00", isAvailable: true },
+          sunday: { start: "09:00", end: "13:00", isAvailable: false }
+        }
+      })
+      setErrors({})
     }
-    resetForm()
-    onOpenChange(false)
+  }, [doctor])
+
+  const validateForm = () => {
+    const newErrors = {}
+
+    // Required fields validation
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+    if (!formData.email.trim()) newErrors.email = "Email is required"
+    if (!formData.specialization.trim()) newErrors.specialization = "Specialization is required"
+    if (!formData.department) newErrors.department = "Department is required"
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (formData.email && !emailRegex.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address"
+    }
+
+    // Phone number validation
+    if (formData.phoneNumber && formData.phoneNumber.length < 10) {
+      newErrors.phoneNumber = "Please enter a valid phone number"
+    }
+
+    // Experience validation
+    const experience = parseInt(formData.experience)
+    if (isNaN(experience) || experience < 0) {
+      newErrors.experience = "Experience must be a valid positive number"
+    }
+
+    // Consultation fee validation
+    const consultationFee = parseInt(formData.consultationFee)
+    if (isNaN(consultationFee) || consultationFee < 0) {
+      newErrors.consultationFee = "Consultation fee must be a valid positive number"
+    }
+
+    // Availability validation
+    const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    for (const day of daysOfWeek) {
+      const dayAvail = formData.availability[day]
+      if (dayAvail.isAvailable) {
+        const startMinutes = parseInt(dayAvail.start.split(':')[0]) * 60 + parseInt(dayAvail.start.split(':')[1])
+        const endMinutes = parseInt(dayAvail.end.split(':')[0]) * 60 + parseInt(dayAvail.end.split(':')[1])
+        
+        if (endMinutes <= startMinutes) {
+          newErrors[`${day}_time`] = `End time must be after start time for ${day.charAt(0).toUpperCase() + day.slice(1)}`
+        }
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      // Filter valid qualifications
+      const validQualifications = formData.qualifications.filter(qual => 
+        qual.degree && qual.degree.trim() && 
+        qual.institution && qual.institution.trim()
+      )
+
+      const updateData = {
+        // User fields
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.toLowerCase().trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        
+        // Doctor fields
+        specialization: formData.specialization.trim(),
+        department: formData.department,
+        experience: parseInt(formData.experience) || 0,
+        consultationFee: parseInt(formData.consultationFee) || 500,
+        status: formData.status,
+        qualifications: validQualifications,
+        availability: formData.availability
+      }
+
+      if (onSave) {
+        await onSave(updateData)
+      }
+      
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error updating doctor:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCancel = () => {
-    resetForm()
+    // Reset form to original doctor data
+    if (doctor) {
+      setFormData({
+        firstName: doctor.userId?.firstName || "",
+        lastName: doctor.userId?.lastName || "",
+        email: doctor.userId?.email || "",
+        phoneNumber: doctor.userId?.phoneNumber || "",
+        specialization: doctor.specialization || "",
+        department: doctor.department || "",
+        experience: doctor.experience?.toString() || "0",
+        consultationFee: doctor.consultationFee?.toString() || "500",
+        status: doctor.status || "active",
+        qualifications: doctor.qualifications || [],
+        availability: doctor.availability || {
+          monday: { start: "09:00", end: "17:00", isAvailable: true },
+          tuesday: { start: "09:00", end: "17:00", isAvailable: true },
+          wednesday: { start: "09:00", end: "17:00", isAvailable: true },
+          thursday: { start: "09:00", end: "17:00", isAvailable: true },
+          friday: { start: "09:00", end: "17:00", isAvailable: true },
+          saturday: { start: "09:00", end: "13:00", isAvailable: true },
+          sunday: { start: "09:00", end: "13:00", isAvailable: false }
+        }
+      })
+    }
+    setErrors({})
     onOpenChange(false)
-  }
-
-  const resetForm = () => {
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      password: "",
-      specialization: "",
-      department: "",
-      experience: "",
-      consultationFee: "500",
-      qualifications: [{ degree: "", institution: "", year: "" }],
-      availability: {
-        monday: { start: "09:00", end: "17:00", isAvailable: true },
-        tuesday: { start: "09:00", end: "17:00", isAvailable: true },
-        wednesday: { start: "09:00", end: "17:00", isAvailable: true },
-        thursday: { start: "09:00", end: "17:00", isAvailable: true },
-        friday: { start: "09:00", end: "17:00", isAvailable: true },
-        saturday: { start: "09:00", end: "13:00", isAvailable: true },
-        sunday: { start: "09:00", end: "13:00", isAvailable: false }
-      }
-    })
   }
 
   const updateAvailability = (day, field, value) => {
@@ -126,10 +244,10 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Add New Doctor
+            Edit Doctor - Dr. {doctor?.userId?.firstName} {doctor?.userId?.lastName}
           </DialogTitle>
           <DialogDescription>
-            Enter the complete details of the new doctor including availability schedule.
+            Update the doctor's information including availability schedule and qualifications.
           </DialogDescription>
         </DialogHeader>
 
@@ -153,60 +271,84 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
             <TabsContent value="basic" className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="first-name">First Name *</Label>
+                  <Label htmlFor="edit-first-name">First Name *</Label>
                   <Input 
-                    id="first-name" 
+                    id="edit-first-name" 
                     placeholder="First name" 
                     value={formData.firstName}
                     onChange={(e) => setFormData({...formData, firstName: e.target.value})}
+                    className={errors.firstName ? "border-red-500" : ""}
                   />
+                  {errors.firstName && <p className="text-sm text-red-500">{errors.firstName}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="last-name">Last Name *</Label>
+                  <Label htmlFor="edit-last-name">Last Name *</Label>
                   <Input 
-                    id="last-name" 
+                    id="edit-last-name" 
                     placeholder="Last name" 
                     value={formData.lastName}
                     onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                    className={errors.lastName ? "border-red-500" : ""}
                   />
+                  {errors.lastName && <p className="text-sm text-red-500">{errors.lastName}</p>}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="edit-email">Email *</Label>
                 <Input 
-                  id="email" 
+                  id="edit-email" 
                   placeholder="Email address" 
                   type="email" 
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  className={errors.email ? "border-red-500" : ""}
                 />
+                {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
+                <Label htmlFor="edit-phone">Phone Number</Label>
                 <Input 
-                  id="password" 
-                  placeholder="Password" 
-                  type="password" 
-                  value={formData.password}
-                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  id="edit-phone" 
+                  placeholder="Phone number" 
+                  type="tel" 
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                  className={errors.phoneNumber ? "border-red-500" : ""}
                 />
+                {errors.phoneNumber && <p className="text-sm text-red-500">{errors.phoneNumber}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-status">Status *</Label>
+                <Select value={formData.status} onValueChange={(value) => setFormData({...formData, status: value})}>
+                  <SelectTrigger id="edit-status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="on_leave">On Leave</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </TabsContent>
 
             <TabsContent value="professional" className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="specialization">Specialization *</Label>
+                <Label htmlFor="edit-specialization">Specialization *</Label>
                 <Input 
-                  id="specialization" 
+                  id="edit-specialization" 
                   placeholder="e.g., Cardiology, General Medicine" 
                   value={formData.specialization}
                   onChange={(e) => setFormData({...formData, specialization: e.target.value})}
+                  className={errors.specialization ? "border-red-500" : ""}
                 />
+                {errors.specialization && <p className="text-sm text-red-500">{errors.specialization}</p>}
               </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="department">Department *</Label>
+                <Label htmlFor="edit-department">Department *</Label>
                 <Select value={formData.department} onValueChange={(value) => setFormData({...formData, department: value})}>
-                  <SelectTrigger id="department">
+                  <SelectTrigger id="edit-department" className={errors.department ? "border-red-500" : ""}>
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,29 +360,35 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
                     <SelectItem value="General">General</SelectItem>
                   </SelectContent>
                 </Select>
+                {errors.department && <p className="text-sm text-red-500">{errors.department}</p>}
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="experience">Experience (years)</Label>
+                  <Label htmlFor="edit-experience">Experience (years) *</Label>
                   <Input 
-                    id="experience" 
+                    id="edit-experience" 
                     placeholder="0" 
                     type="number"
                     min="0"
                     value={formData.experience}
                     onChange={(e) => setFormData({...formData, experience: e.target.value})}
+                    className={errors.experience ? "border-red-500" : ""}
                   />
+                  {errors.experience && <p className="text-sm text-red-500">{errors.experience}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="consultation-fee">Consultation Fee (₹)</Label>
+                  <Label htmlFor="edit-consultation-fee">Consultation Fee (₹) *</Label>
                   <Input 
-                    id="consultation-fee" 
+                    id="edit-consultation-fee" 
                     placeholder="500" 
                     type="number"
                     min="0"
                     value={formData.consultationFee}
                     onChange={(e) => setFormData({...formData, consultationFee: e.target.value})}
+                    className={errors.consultationFee ? "border-red-500" : ""}
                   />
+                  {errors.consultationFee && <p className="text-sm text-red-500">{errors.consultationFee}</p>}
                 </div>
               </div>
 
@@ -271,16 +419,14 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
                           value={qualification.year}
                           onChange={(e) => updateQualification(index, 'year', e.target.value)}
                         />
-                        {formData.qualifications.length > 1 && (
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => removeQualification(index)}
-                          >
-                            Remove
-                          </Button>
-                        )}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => removeQualification(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -297,11 +443,11 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
                       <div className="flex items-center space-x-4 flex-1">
                         <div className="flex items-center space-x-2">
                           <Checkbox
-                            id={`${key}-available`}
+                            id={`edit-${key}-available`}
                             checked={formData.availability[key].isAvailable}
                             onCheckedChange={(checked) => updateAvailability(key, 'isAvailable', checked)}
                           />
-                          <Label htmlFor={`${key}-available`} className="w-20 font-medium">
+                          <Label htmlFor={`edit-${key}-available`} className="w-20 font-medium">
                             {label}
                           </Label>
                         </div>
@@ -330,6 +476,9 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
                         )}
                       </div>
                     </div>
+                    {errors[`${key}_time`] && (
+                      <p className="text-sm text-red-500 mt-2">{errors[`${key}_time`]}</p>
+                    )}
                   </Card>
                 ))}
               </div>
@@ -338,12 +487,16 @@ export function AddDoctorDialog({ open, onOpenChange, onSave }) {
         </Tabs>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Save Doctor
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            ) : (
+              <CheckCircle className="mr-2 h-4 w-4" />
+            )}
+            {loading ? 'Updating...' : 'Update Doctor'}
           </Button>
         </DialogFooter>
       </DialogContent>

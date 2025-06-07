@@ -767,9 +767,7 @@ appointmentController.checkAvailability = async (req, res) => {
 appointmentController.getDoctorAppointments = async (req, res) => {
   try {
     // Check if user is authenticated and has doctor role
-    if (!req.user ) {
-      
-
+    if (!req.user) {
       return res.status(403).json({
         error: true,
         message: 'Access denied. Only doctors can view their appointments.'
@@ -777,7 +775,7 @@ appointmentController.getDoctorAppointments = async (req, res) => {
     }
 
     const doctorId = req.user.id;
-    const { status, date, page = 1, limit = 10 } = req.query;
+    const { status, date, search, page = 1, limit = 10 } = req.query;
 
     // Build filter object
     const filter = { doctor: doctorId };
@@ -795,6 +793,26 @@ appointmentController.getDoctorAppointments = async (req, res) => {
         $gte: startDate,
         $lte: endDate
       };
+    }
+
+    // Add search functionality if search term is provided
+    if (search) {
+      // Find users matching the search term
+      const users = await User.find({
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const userIds = users.map(user => user._id);
+      
+      filter.$or = [
+        { 'reason': { $regex: search, $options: 'i' } },
+        { 'notes': { $regex: search, $options: 'i' } },
+        { 'patient': { $in: userIds } }
+      ];
     }
 
     // Calculate pagination
