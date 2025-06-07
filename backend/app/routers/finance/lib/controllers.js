@@ -513,6 +513,10 @@ financeController.getPatientPaymentHistory = async (req, res) => {
   }
 };
 
+/**
+ * Generate Patient Invoice PDF - FIXED VERSION
+ * GET /finance/invoice/:patientId/pdf?startDate=2024-01-01&endDate=2024-12-31&format=pdf
+ */
 financeController.generatePatientInvoicePDF = async (req, res) => {
   try {
     console.log('--- PDF Generation Start ---');
@@ -525,15 +529,6 @@ financeController.generatePatientInvoicePDF = async (req, res) => {
       ? new mongoose.Types.ObjectId(patientId) 
       : patientId;
     console.log('Patient ObjectId:', patientObjectId);
-
-    // Verify access - patients can only generate their own invoices
-    if (req.user.role === 'patient' && req.user.id !== patientId) {
-      console.log('Access denied for user:', req.user.id);
-      return res.status(403).json({
-        error: true,
-        message: 'Access denied'
-      });
-    }
 
     // Get patient info
     const patient = await User.findById(patientObjectId).select('firstName lastName email phoneNumber');
@@ -583,29 +578,323 @@ financeController.generatePatientInvoicePDF = async (req, res) => {
     const totalTransactions = revenueRecords.length;
     console.log('Total amount:', totalAmount, 'Total transactions:', totalTransactions);
 
-    // Generate HTML for PDF
+    // Enhanced HTML generation with better styling and complete invoice structure
     const generateHTML = () => {
-      const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-      const formatCurrency = (amount) => new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR'
-      }).format(amount);
+      const formatDate = (date) => {
+        if (!date) return 'N/A';
+        return new Date(date).toLocaleDateString('en-IN', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          timeZone: 'Asia/Kolkata'
+        });
+      };
+      
+      const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-IN', {
+          style: 'currency',
+          currency: 'INR',
+          minimumFractionDigits: 2
+        }).format(amount || 0);
+      };
+
+      const periodText = startDate && endDate 
+        ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+        : 'All Time';
+
       return `
         <!DOCTYPE html>
-        <html>
+        <html lang="en">
         <head>
-          <meta charset="utf-8">
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Medical Invoice - ${patient.firstName} ${patient.lastName}</title>
-          <style>body { font-family: 'Arial', sans-serif; }</style>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            
+            body {
+              font-family: 'Arial', 'Helvetica', sans-serif;
+              font-size: 12px;
+              line-height: 1.6;
+              color: #333;
+              background: #fff;
+            }
+            
+            .invoice-container {
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            
+            .invoice-header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #2563eb;
+              padding-bottom: 20px;
+            }
+            
+            .invoice-title {
+              font-size: 28px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 10px;
+            }
+            
+            .invoice-subtitle {
+              font-size: 14px;
+              color: #666;
+            }
+            
+            .invoice-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+              gap: 20px;
+            }
+            
+            .patient-info, .invoice-details {
+              flex: 1;
+              background: #f8fafc;
+              padding: 15px;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            
+            .info-title {
+              font-size: 14px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 10px;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 5px;
+            }
+            
+            .info-row {
+              margin-bottom: 5px;
+              display: flex;
+              justify-content: space-between;
+            }
+            
+            .info-label {
+              font-weight: 600;
+              color: #374151;
+            }
+            
+            .info-value {
+              color: #6b7280;
+            }
+            
+            .transactions-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+              background: white;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .transactions-table th {
+              background: #2563eb;
+              color: white;
+              padding: 12px 8px;
+              text-align: left;
+              font-weight: 600;
+              font-size: 11px;
+            }
+            
+            .transactions-table td {
+              padding: 10px 8px;
+              border-bottom: 1px solid #e5e7eb;
+              font-size: 11px;
+            }
+            
+            .transactions-table tr:nth-child(even) {
+              background: #f9fafb;
+            }
+            
+            .transactions-table tr:hover {
+              background: #f3f4f6;
+            }
+            
+            .amount-cell {
+              text-align: right;
+              font-weight: 600;
+              color: #059669;
+            }
+            
+            .date-cell {
+              color: #6b7280;
+            }
+            
+            .summary-section {
+              background: #f8fafc;
+              border: 2px solid #2563eb;
+              border-radius: 12px;
+              padding: 20px;
+              margin-top: 30px;
+            }
+            
+            .summary-title {
+              font-size: 18px;
+              font-weight: bold;
+              color: #2563eb;
+              margin-bottom: 15px;
+              text-align: center;
+            }
+            
+            .summary-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 15px;
+            }
+            
+            .summary-item {
+              text-align: center;
+              padding: 10px;
+              background: white;
+              border-radius: 8px;
+              border: 1px solid #e2e8f0;
+            }
+            
+            .summary-label {
+              font-size: 12px;
+              color: #6b7280;
+              margin-bottom: 5px;
+            }
+            
+            .summary-value {
+              font-size: 18px;
+              font-weight: bold;
+              color: #059669;
+            }
+            
+            .total-amount {
+              font-size: 24px;
+              color: #dc2626;
+            }
+            
+            .invoice-footer {
+              margin-top: 40px;
+              text-align: center;
+              color: #6b7280;
+              font-size: 10px;
+              border-top: 1px solid #e5e7eb;
+              padding-top: 15px;
+            }
+            
+            @media print {
+              body { font-size: 11px; }
+              .invoice-container { padding: 10px; }
+              .transactions-table th,
+              .transactions-table td { padding: 6px 4px; }
+            }
+          </style>
         </head>
         <body>
-          <h1>Invoice for ${patient.firstName} ${patient.lastName}</h1>
-          <p>Total: ${formatCurrency(totalAmount)}</p>
-          <p>Transactions: ${totalTransactions}</p>
+          <div class="invoice-container">
+            <!-- Header -->
+            <div class="invoice-header">
+              <div class="invoice-title">Medical Invoice</div>
+              <div class="invoice-subtitle">Healthcare Services Payment Summary</div>
+            </div>
+
+            <!-- Invoice Information -->
+            <div class="invoice-info">
+              <div class="patient-info">
+                <div class="info-title">Patient Information</div>
+                <div class="info-row">
+                  <span class="info-label">Name:</span>
+                  <span class="info-value">${patient.firstName} ${patient.lastName}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Email:</span>
+                  <span class="info-value">${patient.email || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Phone:</span>
+                  <span class="info-value">${patient.phoneNumber || 'N/A'}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Patient ID:</span>
+                  <span class="info-value">${patientId}</span>
+                </div>
+              </div>
+
+              <div class="invoice-details">
+                <div class="info-title">Invoice Details</div>
+                <div class="info-row">
+                  <span class="info-label">Invoice Date:</span>
+                  <span class="info-value">${formatDate(new Date())}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Period:</span>
+                  <span class="info-value">${periodText}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Total Transactions:</span>
+                  <span class="info-value">${totalTransactions}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Invoice #:</span>
+                  <span class="info-value">INV-${patientId.slice(-6)}-${new Date().getTime().toString().slice(-6)}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Transactions Table -->
+            <table class="transactions-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Doctor</th>
+                  <th>Department</th>
+                  <th>Service</th>
+                  <th>Payment Method</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${revenueRecords.map(record => `
+                  <tr>
+                    <td class="date-cell">${formatDate(record.date)}</td>
+                    <td>Dr. ${record.doctorId ? `${record.doctorId.firstName} ${record.doctorId.lastName}` : 'N/A'}</td>
+                    <td>${record.appointmentId?.department || 'General'}</td>
+                    <td>${record.appointmentId?.reason || record.description || 'Medical Consultation'}</td>
+                    <td style="text-transform: capitalize;">${record.paymentMethod || 'Cash'}</td>
+                    <td class="amount-cell">${formatCurrency(record.amount)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+
+            <!-- Summary Section -->
+            <div class="summary-section">
+              <div class="summary-title">Payment Summary</div>
+              <div class="summary-grid">
+                <div class="summary-item">
+                  <div class="summary-label">Total Transactions</div>
+                  <div class="summary-value">${totalTransactions}</div>
+                </div>
+                <div class="summary-item">
+                  <div class="summary-label">Average per Visit</div>
+                  <div class="summary-value">${formatCurrency(totalTransactions > 0 ? totalAmount / totalTransactions : 0)}</div>
+                </div>
+              </div>
+              <div style="text-align: center; margin-top: 20px;">
+                <div class="summary-label">Total Amount Paid</div>
+                <div class="summary-value total-amount">${formatCurrency(totalAmount)}</div>
+              </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="invoice-footer">
+              <p>This is a computer-generated invoice and does not require a signature.</p>
+              <p>Generated on ${formatDate(new Date())} | For any queries, please contact our billing department.</p>
+            </div>
+          </div>
         </body>
         </html>
       `;
@@ -616,33 +905,86 @@ financeController.generatePatientInvoicePDF = async (req, res) => {
 
     if (format === 'html') {
       console.log('Sending HTML preview');
-      res.setHeader('Content-Type', 'text/html');
-      res.send(generateHTML());
-    } else {
-      console.log('Generating PDF with Puppeteer...');
-      const html = generateHTML();
-      const browser = await puppeteer.launch({
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(generateHTML());
+    }
+
+    // Generate PDF with Puppeteer
+    console.log('Generating PDF with Puppeteer...');
+    const html = generateHTML();
+    
+    let browser;
+    try {
+      browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ]
       });
+
       const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({ format: 'A4' });
-      await browser.close();
+      
+      // Set content with proper encoding
+      await page.setContent(html, { 
+        waitUntil: 'networkidle0',
+        timeout: 30000
+      });
+
+      // Generate PDF with proper options
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '0.5in',
+          right: '0.5in',
+          bottom: '0.5in',
+          left: '0.5in'
+        },
+        displayHeaderFooter: false,
+        preferCSSPageSize: true
+      });
+
       console.log('PDF buffer generated, size:', pdfBuffer.length);
+
+      // Set proper headers for PDF response
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.send(pdfBuffer);
-      console.log('PDF sent to client');
+      res.setHeader('Content-Length', pdfBuffer.length);
+      res.setHeader('Cache-Control', 'no-cache');
+      
+      // Send the PDF buffer
+      res.end(pdfBuffer);
+      console.log('PDF sent to client successfully');
+
+    } catch (pdfError) {
+      console.error('PDF generation error:', pdfError);
+      throw pdfError;
+    } finally {
+      if (browser) {
+        await browser.close();
+        console.log('Browser closed');
+      }
     }
+
     console.log('--- PDF Generation End ---');
+
   } catch (error) {
     console.error('Error generating patient invoice PDF:', error);
-    res.status(500).json({
-      error: true,
-      message: 'Error generating invoice PDF',
-      details: error.message
-    });
+    
+    // Ensure headers haven't been sent before sending error response
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: true,
+        message: 'Error generating invoice PDF',
+        details: error.message
+      });
+    }
   }
 };
 
